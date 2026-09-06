@@ -12,13 +12,10 @@ Asynqmon is both a library that you can include in your web application, as well
 ## Source and fork provenance
 
 This repository is an independent continuation of the MIT-licensed
-[`hibiken/asynqmon`](https://github.com/hibiken/asynqmon) project. Its exact
-starting point is the `parsidev/asynqmon` tag
-[`v0.7.2-parsidev-1`](https://github.com/parsidev/asynqmon/releases/tag/v0.7.2-parsidev-1),
-at commit
-[`8bf6ad3618d90570102589ee2c8e2e891d07547f`](https://github.com/parsidev/asynqmon/commit/8bf6ad3618d90570102589ee2c8e2e891d07547f).
-The `parsidev` fork itself derives from the original upstream project. Original
-copyright notices, the MIT license, and Git history are preserved.
+[`hibiken/asynqmon`](https://github.com/hibiken/asynqmon) project. Its imported
+history baseline is commit
+[`8bf6ad3618d90570102589ee2c8e2e891d07547f`](https://github.com/pars-aria-labs/asynqmon/commit/8bf6ad3618d90570102589ee2c8e2e891d07547f).
+Original copyright notices, the MIT license, and Git history are preserved.
 
 The changes maintained here include:
 
