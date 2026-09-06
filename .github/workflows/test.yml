@@ -1,0 +1,148 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches: [master, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ui-and-library:
+    name: UI, Go, and framework tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            integration/frameworks/go.sum
+      - name: Install UI dependencies
+        run: npm ci --no-audit --no-fund
+        working-directory: ui
+      - name: Run UI tests and production build
+        run: npm test && npm run build
+        working-directory: ui
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: ui
+      - name: Run browser tests
+        run: npm run test:e2e
+        working-directory: ui
+      - name: Upload browser diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-diagnostics
+          path: |
+            ui/playwright-report/
+            ui/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Run Go race tests
+        run: go test -race -count=1 ./...
+        env:
+          ASYNQMON_TEST_REDIS_ADDR: 127.0.0.1:6379
+      - name: Run Go static analysis
+        run: go vet ./...
+      - name: Test Gin and Echo adapters
+        run: go test -race -count=1 ./...
+        working-directory: integration/frameworks
+
+  container-build:
+    name: Container smoke (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+          - arch: arm64
+            platform: linux/arm64
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - name: Build target-platform image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          load: true
+          push: false
+          tags: asynqmon:ci-${{ matrix.arch }}
+          cache-from: type=gha,scope=container-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=container-${{ matrix.arch }}
+      - name: Run target-platform image
+        env:
+          IMAGE: asynqmon:ci-${{ matrix.arch }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          container_id="$(docker run --detach --platform "$PLATFORM" \
+            --add-host=host.docker.internal:host-gateway \
+            --publish 127.0.0.1:18080:8080 \
+            "$IMAGE" --redis-addr=host.docker.internal:6379)"
+          trap 'docker logs "$container_id"; docker rm --force "$container_id"' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error http://127.0.0.1:18080/api/queues >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+
+  compose-demo:
+    name: Docker Compose demo smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Start the complete demo stack
+        run: docker compose -f compose.demo.yaml up --build --detach --wait
+      - name: Verify Redis-backed UI and Prometheus queries
+        run: |
+          for attempt in {1..60}; do
+            if curl --fail --silent --show-error http://127.0.0.1:8080/api/queues >/dev/null &&
+              curl --fail --silent --show-error \
+                "http://127.0.0.1:8080/api/metrics?duration=60" |
+                python3 -c 'import json, sys; data=json.load(sys.stdin); assert len(data) == 9 and all(item.get("status") == "success" for item in data.values())'
+            then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose -f compose.demo.yaml logs
+          exit 1
+      - name: Stop the demo stack
+        if: always()
+        run: docker compose -f compose.demo.yaml down --volumes
