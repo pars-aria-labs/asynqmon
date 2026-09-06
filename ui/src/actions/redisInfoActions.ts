@@ -27,13 +27,15 @@ export type RedisInfoActionTypes =
   | GetRedisInfoErrorAction
   | GetRedisInfoSuccessAction;
 
-export function getRedisInfoAsync() {
+export function getRedisInfoAsync(signal?: AbortSignal) {
   return async (dispatch: Dispatch<RedisInfoActionTypes>) => {
     dispatch({ type: GET_REDIS_INFO_BEGIN });
     try {
-      const response = await getRedisInfo();
+      const response = await getRedisInfo(signal);
+      if (signal?.aborted) return;
       dispatch({ type: GET_REDIS_INFO_SUCCESS, payload: response });
     } catch (error) {
+      if (signal?.aborted) return;
       console.error(`getRedisInfoAsync: ${toErrorStringWithHttpStatus(error)}`);
       dispatch({
         type: GET_REDIS_INFO_ERROR,

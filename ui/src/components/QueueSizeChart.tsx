@@ -8,9 +8,10 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  type MouseHandlerDataParam,
 } from "recharts";
 import { useHistory } from "react-router-dom";
-import { useTheme } from "@material-ui/core/styles";
+import { useTheme } from "@mui/material/styles";
 import { queueDetailsPath } from "../paths";
 
 interface Props {
@@ -30,11 +31,10 @@ interface TaskBreakdown {
 
 function QueueSizeChart(props: Props) {
   const theme = useTheme();
-  const handleClick = (params: { activeLabel?: string } | null) => {
+  const handleClick = (params: MouseHandlerDataParam) => {
     const allQueues = props.data.map((b) => b.queue);
     if (
-      params &&
-      params.activeLabel &&
+      typeof params.activeLabel === "string" &&
       allQueues.includes(params.activeLabel)
     ) {
       history.push(queueDetailsPath(params.activeLabel));
@@ -49,18 +49,76 @@ function QueueSizeChart(props: Props) {
         onClick={handleClick}
         style={{ cursor: "pointer" }}
       >
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="queue" stroke={theme.palette.text.secondary} />
-        <YAxis stroke={theme.palette.text.secondary} />
-        <Tooltip />
-        <Legend />
-        <Bar dataKey="active" stackId="a" fill="#1967d2" />
-        <Bar dataKey="pending" stackId="a" fill="#669df6" />
-        <Bar dataKey="aggregating" stackId="a" fill="#e69138" />
-        <Bar dataKey="scheduled" stackId="a" fill="#fdd663" />
-        <Bar dataKey="retry" stackId="a" fill="#f666a9" />
-        <Bar dataKey="archived" stackId="a" fill="#ac4776" />
-        <Bar dataKey="completed" stackId="a" fill="#4bb543" />
+        <CartesianGrid
+          strokeDasharray="3 3"
+          vertical={false}
+          stroke={theme.palette.divider}
+        />
+        <XAxis
+          tick={{ fontSize: 11 }}
+          dataKey="queue"
+          stroke={theme.palette.text.secondary}
+        />
+        <YAxis
+          width={42}
+          tick={{ fontSize: 11 }}
+          stroke={theme.palette.text.secondary}
+        />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: theme.palette.background.paper,
+            borderColor: theme.palette.divider,
+            borderRadius: 10,
+            color: theme.palette.text.primary,
+          }}
+        />
+        <Legend
+          height={72}
+          iconSize={8}
+          wrapperStyle={{ fontSize: 11, paddingTop: 12 }}
+        />
+        <Bar
+          isAnimationActive={false}
+          dataKey="active"
+          stackId="a"
+          fill="#0d9488"
+        />
+        <Bar
+          isAnimationActive={false}
+          dataKey="pending"
+          stackId="a"
+          fill="#818cf8"
+        />
+        <Bar
+          isAnimationActive={false}
+          dataKey="aggregating"
+          stackId="a"
+          fill="#a78bfa"
+        />
+        <Bar
+          isAnimationActive={false}
+          dataKey="scheduled"
+          stackId="a"
+          fill="#fbbf24"
+        />
+        <Bar
+          isAnimationActive={false}
+          dataKey="retry"
+          stackId="a"
+          fill="#fb923c"
+        />
+        <Bar
+          isAnimationActive={false}
+          dataKey="archived"
+          stackId="a"
+          fill="#fb7185"
+        />
+        <Bar
+          isAnimationActive={false}
+          dataKey="completed"
+          stackId="a"
+          fill="#34d399"
+        />
       </BarChart>
     </ResponsiveContainer>
   );

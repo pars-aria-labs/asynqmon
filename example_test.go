@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/hibiken/asynq"
-	"github.com/hibiken/asynqmon"
+	"github.com/pars-aria-labs/asynqmon"
 )
 
 func ExampleHTTPHandler() {
@@ -13,7 +13,10 @@ func ExampleHTTPHandler() {
 		RootPath:     "/monitoring",
 		RedisConnOpt: asynq.RedisClientOpt{Addr: ":6379"},
 	})
+	defer h.Close()
 
-	http.Handle(h.RootPath(), h)
-	log.Fatal(http.ListenAndServe(":8000", nil)) // visit localhost:8000/monitoring to see asynqmon homepage
+	mux := http.NewServeMux()
+	mux.Handle(h.RootPath()+"/", h)
+	// Visit localhost:8000/monitoring/ to see the Asynqmon homepage.
+	log.Print(http.ListenAndServe(":8000", mux))
 }

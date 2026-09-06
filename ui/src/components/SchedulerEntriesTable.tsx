@@ -1,27 +1,28 @@
 import React, { useState } from "react";
 import clsx from "clsx";
-import { makeStyles } from "@material-ui/core/styles";
-import IconButton from "@material-ui/core/IconButton";
-import Table from "@material-ui/core/Table";
-import TableBody from "@material-ui/core/TableBody";
-import TableCell from "@material-ui/core/TableCell";
-import TableContainer from "@material-ui/core/TableContainer";
-import TableHead from "@material-ui/core/TableHead";
-import TableRow from "@material-ui/core/TableRow";
-import Modal from "@material-ui/core/Modal";
-import Typography from "@material-ui/core/Typography";
-import Tooltip from "@material-ui/core/Tooltip";
-import HistoryIcon from "@material-ui/icons/History";
-import Alert from "@material-ui/lab/Alert";
-import AlertTitle from "@material-ui/lab/AlertTitle";
+import { makeStyles } from "tss-react/mui";
+
+import IconButton from "@mui/material/IconButton";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import Modal from "@mui/material/Modal";
+import Typography from "@mui/material/Typography";
+import Tooltip from "@mui/material/Tooltip";
+import HistoryIcon from "@mui/icons-material/History";
+import Alert from "@mui/material/Alert";
+import AlertTitle from "@mui/material/AlertTitle";
 import { SortDirection, SortableTableColumn } from "../types/table";
-import TableSortLabel from "@material-ui/core/TableSortLabel";
+import TableSortLabel from "@mui/material/TableSortLabel";
 import SyntaxHighlighter from "./SyntaxHighlighter";
 import { SchedulerEntry } from "../api";
 import { timeAgo, durationBefore, prettifyPayload } from "../utils";
 import SchedulerEnqueueEventsTable from "./SchedulerEnqueueEventsTable";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   table: {
     minWidth: 650,
   },
@@ -118,7 +119,7 @@ const colConfigs: SortableTableColumn<SortBy>[] = [
 // It returns a new array and leave the original array untouched.
 function sortEntries(
   entries: SchedulerEntry[],
-  cmpFn: (first: SchedulerEntry, second: SchedulerEntry) => number
+  cmpFn: (first: SchedulerEntry, second: SchedulerEntry) => number,
 ): SchedulerEntry[] {
   let copy = [...entries];
   copy.sort(cmpFn);
@@ -130,7 +131,7 @@ interface Props {
 }
 
 export default function SchedulerEntriesTable(props: Props) {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const [sortBy, setSortBy] = useState<SortBy>(SortBy.EntryId);
   const [sortDir, setSortDir] = useState<SortDirection>(SortDirection.Asc);
   const [activeEntryId, setActiveEntryId] = useState<string>("");
@@ -257,7 +258,7 @@ interface RowProps {
   onShowHistoryClick: () => void;
 }
 
-const useRowStyles = makeStyles((theme) => ({
+const useRowStyles = makeStyles()((theme) => ({
   rowRoot: {
     "& > *": {
       borderBottom: "unset",
@@ -270,7 +271,7 @@ const useRowStyles = makeStyles((theme) => ({
 
 function Row(props: RowProps) {
   const { entry, isLastRow } = props;
-  const classes = useRowStyles();
+  const { classes } = useRowStyles();
   return (
     <TableRow className={classes.rowRoot}>
       <TableCell

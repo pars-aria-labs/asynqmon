@@ -25,16 +25,18 @@ export type ServersActionTypes =
   | ListServersSuccessAction
   | ListServersErrorAction;
 
-export function listServersAsync() {
+export function listServersAsync(signal?: AbortSignal) {
   return async (dispatch: Dispatch<ServersActionTypes>) => {
     dispatch({ type: LIST_SERVERS_BEGIN });
     try {
-      const response = await listServers();
+      const response = await listServers(signal);
+      if (signal?.aborted) return;
       dispatch({
         type: LIST_SERVERS_SUCCESS,
         payload: response,
       });
     } catch (error) {
+      if (signal?.aborted) return;
       console.error(`listServersAsync: ${toErrorStringWithHttpStatus(error)}`);
       dispatch({
         type: LIST_SERVERS_ERROR,

@@ -14,3 +14,9 @@ LICENSE
 .git/
 .github/
 **/node_modules/
+ui/build/
+# Local binaries and browser test artifacts
+/asynqmon
+/api
+ui/test-results/
+ui/playwright-report/

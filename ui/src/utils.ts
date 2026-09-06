@@ -1,21 +1,18 @@
-import { AxiosError } from "axios";
+import { isAxiosError } from "axios";
 
-// toErrorStringWithHttpStatus returns a string representaion of axios error with HTTP status.
-export function toErrorStringWithHttpStatus(error: AxiosError<string>): string {
-  const { response } = error;
-  if (!response) {
-    return "error: no error response data available";
-  }
-  return `${response.status} (${response.statusText}): ${response.data}`;
+export function toErrorStringWithHttpStatus(error: unknown): string {
+  if (!isAxiosError(error) || !error.response) return toErrorString(error);
+  return `${error.response.status} (${error.response.statusText}): ${toErrorString(error)}`;
 }
 
-// toErrorString returns a string representaion of axios error.
-export function toErrorString(error: AxiosError<string>): string {
-  const { response } = error;
-  if (!response) {
-    return "Unknown error occurred. See the logs for details.";
+export function toErrorString(error: unknown): string {
+  if (isAxiosError(error)) {
+    if (typeof error.response?.data === "string") return error.response.data;
+    return error.message || "Could not reach the server.";
   }
-  return response.data;
+  return error instanceof Error
+    ? error.message
+    : "An unexpected error occurred.";
 }
 
 interface Duration {
@@ -128,23 +125,37 @@ export function currentUnixtime(): number {
   return Math.floor(Date.now() / 1000);
 }
 
-const durationRegex = /([0-9]*(\.[0-9]*)?)[s|m|h]/;
+const durationRegex = /^(\d+(?:\.\d+)?|\.\d+)([smhd])$/;
 // Parses the given string and returns the number of seconds if the input is valid.
 // Otherwise, it throws an error
-// Supported time units are "s", "m", "h"
+// Supported time units are "s", "m", "h", and "d".
 export function parseDuration(s: string): number {
-  if (!durationRegex.test(s)) {
+  const match = durationRegex.exec(s.trim());
+  if (match === null) {
     throw new Error("invalid duration");
   }
-  const val = parseFloat(s.slice(0, -1));
-  switch (s.slice(-1)) {
+  const value = Number(match[1]);
+  let seconds: number;
+  switch (match[2]) {
     case "s":
-      return val;
+      seconds = value;
+      break;
     case "m":
-      return val * 60;
+      seconds = value * 60;
+      break;
     case "h":
-      return val * 60 * 60;
+      seconds = value * 60 * 60;
+      break;
+    case "d":
+      seconds = value * 24 * 60 * 60;
+      break;
     default:
       throw new Error("invalid duration unit");
   }
+  if (!Number.isSafeInteger(seconds) || seconds <= 0) {
+    throw new Error(
+      "duration must resolve to a positive whole number of seconds",
+    );
+  }
+  return seconds;
 }

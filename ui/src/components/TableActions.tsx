@@ -1,12 +1,13 @@
 import React, { useState } from "react";
-import { makeStyles } from "@material-ui/core/styles";
-import Tooltip from "@material-ui/core/Tooltip";
-import IconButton from "@material-ui/core/IconButton";
-import Menu from "@material-ui/core/Menu";
-import MenuItem from "@material-ui/core/MenuItem";
-import MoreHorizIcon from "@material-ui/icons/MoreHoriz";
+import { makeStyles } from "tss-react/mui";
 
-const useStyles = makeStyles((theme) => ({
+import Tooltip from "@mui/material/Tooltip";
+import IconButton from "@mui/material/IconButton";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+
+const useStyles = makeStyles()((theme) => ({
   actionsContainer: {
     display: "flex",
     padding: "4px",
@@ -40,7 +41,7 @@ interface Props {
 }
 
 export default function TableActions(props: Props) {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
 
   const handleMenuClick = (event: React.MouseEvent<HTMLButtonElement>) => {

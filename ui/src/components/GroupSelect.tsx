@@ -1,14 +1,15 @@
 import React from "react";
-import { makeStyles, useTheme } from "@material-ui/core/styles";
-import TextField from "@material-ui/core/TextField";
-import Autocomplete from "@material-ui/lab/Autocomplete";
-import useMediaQuery from "@material-ui/core/useMediaQuery";
-import ListSubheader from "@material-ui/core/ListSubheader";
+import { makeStyles } from "tss-react/mui";
+import { useTheme } from "@mui/material/styles";
+import TextField from "@mui/material/TextField";
+import Autocomplete from "@mui/material/Autocomplete";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import ListSubheader from "@mui/material/ListSubheader";
 import { VariableSizeList, ListChildComponentProps } from "react-window";
 import { GroupInfo } from "../api";
 import { isDarkTheme } from "../theme";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   groupSelectOption: {
     display: "flex",
     justifyContent: "space-between",
@@ -39,7 +40,7 @@ interface Props {
 }
 
 export default function GroupSelect(props: Props) {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const [inputValue, setInputValue] = React.useState("");
 
   return (
@@ -62,11 +63,12 @@ export default function GroupSelect(props: Props) {
       options={props.groups}
       getOptionLabel={(option: GroupInfo) => option.group}
       style={{ width: 300 }}
-      renderOption={(option: GroupInfo) => (
-        <div className={classes.groupSelectOption}>
+      isOptionEqualToValue={(option, value) => option.group === value.group}
+      renderOption={(optionProps, option: GroupInfo) => (
+        <li {...optionProps} className={classes.groupSelectOption}>
           <span>{option.group}</span>
           <span className={classes.groupSize}>{option.size}</span>
-        </div>
+        </li>
       )}
       renderInput={(params) => (
         <TextField {...params} label="Select group" variant="outlined" />
@@ -112,49 +114,50 @@ function useResetCache(data: any) {
 }
 
 // Adapter for react-window
-const ListboxComponent = React.forwardRef<HTMLDivElement>(
-  function ListboxComponent(props, ref) {
-    const { children, ...other } = props;
-    const itemData = React.Children.toArray(children);
-    const theme = useTheme();
-    const smUp = useMediaQuery(theme.breakpoints.up("sm"), { noSsr: true });
-    const itemCount = itemData.length;
-    const itemSize = smUp ? 36 : 48;
+const ListboxComponent = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLElement>
+>(function ListboxComponent(props, ref) {
+  const { children, ...other } = props;
+  const itemData = React.Children.toArray(children);
+  const theme = useTheme();
+  const smUp = useMediaQuery(theme.breakpoints.up("sm"), { noSsr: true });
+  const itemCount = itemData.length;
+  const itemSize = smUp ? 36 : 48;
 
-    const getChildSize = (child: React.ReactNode) => {
-      if (React.isValidElement(child) && child.type === ListSubheader) {
-        return 48;
-      }
-      return itemSize;
-    };
+  const getChildSize = (child: React.ReactNode) => {
+    if (React.isValidElement(child) && child.type === ListSubheader) {
+      return 48;
+    }
+    return itemSize;
+  };
 
-    const getHeight = () => {
-      if (itemCount > 8) {
-        return 8 * itemSize;
-      }
-      return itemData.map(getChildSize).reduce((a, b) => a + b, 0);
-    };
+  const getHeight = () => {
+    if (itemCount > 8) {
+      return 8 * itemSize;
+    }
+    return itemData.map(getChildSize).reduce((a, b) => a + b, 0);
+  };
 
-    const gridRef = useResetCache(itemCount);
+  const gridRef = useResetCache(itemCount);
 
-    return (
-      <div ref={ref}>
-        <OuterElementContext.Provider value={other}>
-          <VariableSizeList
-            itemData={itemData}
-            height={getHeight() + 2 * LISTBOX_PADDING}
-            width="100%"
-            ref={gridRef}
-            outerElementType={OuterElementType}
-            innerElementType="ul"
-            itemSize={(index) => getChildSize(itemData[index])}
-            overscanCount={5}
-            itemCount={itemCount}
-          >
-            {renderRow}
-          </VariableSizeList>
-        </OuterElementContext.Provider>
-      </div>
-    );
-  }
-);
+  return (
+    <div ref={ref}>
+      <OuterElementContext.Provider value={other}>
+        <VariableSizeList
+          itemData={itemData}
+          height={getHeight() + 2 * LISTBOX_PADDING}
+          width="100%"
+          ref={gridRef}
+          outerElementType={OuterElementType}
+          innerElementType="ul"
+          itemSize={(index) => getChildSize(itemData[index])}
+          overscanCount={5}
+          itemCount={itemCount}
+        >
+          {renderRow}
+        </VariableSizeList>
+      </OuterElementContext.Provider>
+    </div>
+  );
+});

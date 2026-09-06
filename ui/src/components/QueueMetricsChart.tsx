@@ -1,5 +1,5 @@
-import { useTheme } from "@material-ui/core/styles";
-import React from "react";
+import { useTheme } from "@mui/material/styles";
+import React, { type ReactNode } from "react";
 import {
   LineChart,
   Line,
@@ -65,8 +65,13 @@ function QueueMetricsChart(props: Props) {
   return (
     <ResponsiveContainer height={260}>
       <LineChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" />
+        <CartesianGrid
+          strokeDasharray="3 3"
+          vertical={false}
+          stroke={theme.palette.divider}
+        />
         <XAxis
+          tick={{ fontSize: 11 }}
           minTickGap={10}
           dataKey="timestamp"
           domain={[props.startTime, props.endTime]}
@@ -82,13 +87,16 @@ function QueueMetricsChart(props: Props) {
           stroke={theme.palette.text.secondary}
         />
         <Tooltip
-          labelFormatter={(timestamp: number) => {
-            return new Date(timestamp * 1000).toLocaleTimeString();
+          labelFormatter={(timestamp: ReactNode) => {
+            return typeof timestamp === "number"
+              ? new Date(timestamp * 1000).toLocaleTimeString()
+              : timestamp;
           }}
         />
         <Legend />
         {keys.map((key, idx) => (
           <Line
+            isAnimationActive={false}
             key={key}
             type="monotone"
             dataKey={key}

@@ -1,22 +1,25 @@
+import { useURLFilters, positiveInteger } from "../hooks/useURLFilters";
+import { rowsPerPageOptions as allowedPageSizes } from "../types/preferences";
 import React, { useState, useCallback } from "react";
-import { makeStyles } from "@material-ui/core/styles";
-import Table from "@material-ui/core/Table";
-import TableBody from "@material-ui/core/TableBody";
-import TableCell from "@material-ui/core/TableCell";
-import TableContainer from "@material-ui/core/TableContainer";
-import TableHead from "@material-ui/core/TableHead";
-import TableRow from "@material-ui/core/TableRow";
-import TableFooter from "@material-ui/core/TableFooter";
-import TablePagination from "@material-ui/core/TablePagination";
-import Paper from "@material-ui/core/Paper";
-import Checkbox from "@material-ui/core/Checkbox";
-import IconButton from "@material-ui/core/IconButton";
-import PlayArrowIcon from "@material-ui/icons/PlayArrow";
-import DeleteIcon from "@material-ui/icons/Delete";
-import ArchiveIcon from "@material-ui/icons/Archive";
-import CancelIcon from "@material-ui/icons/Cancel";
-import Alert from "@material-ui/lab/Alert";
-import AlertTitle from "@material-ui/lab/AlertTitle";
+import { makeStyles } from "tss-react/mui";
+
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import TableFooter from "@mui/material/TableFooter";
+import TablePagination from "@mui/material/TablePagination";
+import Paper from "@mui/material/Paper";
+import Checkbox from "@mui/material/Checkbox";
+import IconButton from "@mui/material/IconButton";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import DeleteIcon from "@mui/icons-material/Delete";
+import ArchiveIcon from "@mui/icons-material/Archive";
+import CancelIcon from "@mui/icons-material/Cancel";
+import Alert from "@mui/material/Alert";
+import AlertTitle from "@mui/material/AlertTitle";
 import TablePaginationActions, {
   rowsPerPageOptions,
 } from "./TablePaginationActions";
@@ -27,7 +30,7 @@ import { TableColumn } from "../types/table";
 import { PaginationOptions } from "../api";
 import { TaskState } from "../types/taskState";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   table: {
     minWidth: 650,
   },
@@ -57,7 +60,11 @@ interface Props {
   columns: TableColumn[];
 
   // actions
-  listTasks: (qname: string, pgn: PaginationOptions) => void;
+  listTasks: (
+    qname: string,
+    pgn: PaginationOptions,
+    signal?: AbortSignal,
+  ) => Promise<void>;
   batchDeleteTasks?: (qname: string, taskIds: string[]) => Promise<void>;
   batchRunTasks?: (qname: string, taskIds: string[]) => Promise<void>;
   batchArchiveTasks?: (qname: string, taskIds: string[]) => Promise<void>;
@@ -76,24 +83,28 @@ interface Props {
 }
 
 export default function TasksTable(props: Props) {
-  const { pollInterval, listTasks, queue, pageSize } = props;
-  const classes = useStyles();
-  const [page, setPage] = useState(0);
+  const { pollInterval, listTasks, queue } = props;
+  const { classes } = useStyles();
+  const { filters, setFilters } = useURLFilters();
+  const page = positiveInteger(filters.get("page"), 1) - 1;
+  const requestedSize = positiveInteger(filters.get("size"), props.pageSize);
+  const pageSize = allowedPageSizes.includes(requestedSize) ? requestedSize : props.pageSize;
+  const setPage = (value: number) => setFilters({ page: value === 0 ? null : String(value + 1) });
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeTaskId, setActiveTaskId] = useState<string>("");
 
   const handlePageChange = (
     event: React.MouseEvent<HTMLButtonElement> | null,
-    newPage: number
+    newPage: number,
   ) => {
     setPage(newPage);
   };
 
   const handleRowsPerPageChange = (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     props.taskRowsPerPageChange(parseInt(event.target.value, 10));
-    setPage(0);
+    setFilters({ size: event.target.value, page: null });
   };
 
   const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,14 +121,14 @@ export default function TasksTable(props: Props) {
   }
 
   function createBatchActionHandler(
-    action: (qname: string, taskIds: string[]) => Promise<void>
+    action: (qname: string, taskIds: string[]) => Promise<void>,
   ) {
     return () => action(queue, selectedIds).then(() => setSelectedIds([]));
   }
 
   function createSingleActionHandler(
     action: (qname: string, taskId: string) => Promise<void>,
-    taskId: string
+    taskId: string,
   ) {
     return () => action(queue, taskId);
   }
@@ -186,9 +197,9 @@ export default function TasksTable(props: Props) {
     });
   }
 
-  const fetchData = useCallback(() => {
+  const fetchData = useCallback((signal: AbortSignal) => {
     const pageOpts = { page: page + 1, size: pageSize };
-    listTasks(queue, pageOpts);
+    return listTasks(queue, pageOpts, signal);
   }, [page, pageSize, queue, listTasks]);
 
   usePolling(fetchData, pollInterval);
@@ -324,7 +335,7 @@ export default function TasksTable(props: Props) {
   );
 }
 
-export const useRowStyles = makeStyles((theme) => ({
+export const useRowStyles = makeStyles()((theme) => ({
   root: {
     cursor: "pointer",
     "& #copy-button": {
@@ -336,7 +347,7 @@ export const useRowStyles = makeStyles((theme) => ({
         display: "inline-block",
       },
     },
-    "&:hover $copyButton": {
+    "&:hover .task-copy-button": {
       display: "inline-block",
     },
     "&:hover .MuiTableCell-root": {

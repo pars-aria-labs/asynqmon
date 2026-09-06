@@ -6,8 +6,8 @@ import {
   THEME_PREFERENCE_CHANGE,
   TOGGLE_DRAWER,
 } from "../actions/settingsActions";
-import { defaultPageSize } from "../components/TablePaginationActions"
-import { DailyStatsKey, defaultDailyStatsKey } from "../views/DashboardView";
+import { defaultPageSize } from "../types/preferences";
+import { DailyStatsKey, defaultDailyStatsKey } from "../types/preferences";
 
 export enum ThemePreference {
   SystemDefault,
@@ -26,7 +26,7 @@ export interface SettingsState {
   isDrawerOpen: boolean;
 
   // Number of tasks displayed in task table.
-  taskRowsPerPage: number,
+  taskRowsPerPage: number;
 
   // Type of the chart displayed for "Processed Tasks" section in dashboard.
   dailyStatsChartType: DailyStatsKey;
@@ -42,7 +42,7 @@ export const initialState: SettingsState = {
 
 function settingsReducer(
   state = initialState,
-  action: SettingsActionTypes
+  action: SettingsActionTypes,
 ): SettingsState {
   switch (action.type) {
     case POLL_INTERVAL_CHANGE:
@@ -67,13 +67,13 @@ function settingsReducer(
       return {
         ...state,
         taskRowsPerPage: action.value,
-      }
+      };
 
     case DAILY_STATS_KEY_CHANGE:
       return {
         ...state,
         dailyStatsChartType: action.value,
-      }
+      };
 
     default:
       return state;

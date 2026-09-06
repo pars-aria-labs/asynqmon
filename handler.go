@@ -1,7 +1,6 @@
 package asynqmon
 
 import (
-	"crypto/subtle"
 	"embed"
 	"fmt"
 	"net/http"
@@ -43,22 +42,29 @@ type Options struct {
 
 	// Set ReadOnly to true to restrict user to view-only mode.
 	ReadOnly bool
-	
-	BasicAuthUsername string
 
+	// BasicAuthUsername and BasicAuthPassword protect the entire monitoring
+	// handler (HTML, assets, and API). Set both or neither. Use HTTPS when
+	// serving credentials outside a trusted local environment.
+	BasicAuthUsername string
 	BasicAuthPassword string
 
+	// Middleware wraps the complete monitoring handler, including static files
+	// and fallback routes. Use it to integrate session, JWT, or SSO authentication.
+	// It receives the original request, including the host application's context.
+	// When Basic Auth is also configured, both checks must succeed.
+	Middleware func(http.Handler) http.Handler
 }
 
 // HTTPHandler is a http.Handler for asynqmon application.
 type HTTPHandler struct {
-	router   *mux.Router
+	handler  http.Handler
 	closers  []func() error
 	rootPath string // the value should not have the trailing slash
 }
 
 func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.router.ServeHTTP(w, r)
+	h.handler.ServeHTTP(w, r)
 }
 
 // New creates a HTTPHandler with the given options.
@@ -66,24 +72,66 @@ func New(opts Options) *HTTPHandler {
 	if opts.RedisConnOpt == nil {
 		panic("asynqmon.New: RedisConnOpt field is required")
 	}
+	if (opts.BasicAuthUsername == "") != (opts.BasicAuthPassword == "") {
+		panic("asynqmon.New: BasicAuthUsername and BasicAuthPassword must both be set")
+	}
+	if opts.RootPath != "" && !strings.HasPrefix(opts.RootPath, "/") {
+		panic("asynqmon.New: RootPath must start with a slash")
+	}
+	opts.RootPath = strings.TrimRight(opts.RootPath, "/")
 	rc, ok := opts.RedisConnOpt.MakeRedisClient().(redis.UniversalClient)
 	if !ok {
-		panic(fmt.Sprintf("asnyqmon.New: unsupported RedisConnOpt type %T", opts.RedisConnOpt))
+		panic("asynqmon.New: unsupported RedisConnOpt type")
 	}
 	i := asynq.NewInspector(opts.RedisConnOpt)
-
-	// Make sure that RootPath starts with a slash if provided.
-	if opts.RootPath != "" && !strings.HasPrefix(opts.RootPath, "/") {
-		panic(fmt.Sprintf("asynqmon.New: RootPath must start with a slash"))
+	var handler http.Handler = muxRouter(opts, rc, i)
+	if opts.ReadOnly {
+		next := handler
+		handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			apiRoot := opts.RootPath + "/api"
+			if r.URL.Path == apiRoot || strings.HasPrefix(r.URL.Path, apiRoot+"/") {
+				restrictToReadOnly(next).ServeHTTP(w, r)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
 	}
-	// Remove tailing slash from RootPath.
-	opts.RootPath = strings.TrimSuffix(opts.RootPath, "/")
+	// Authentication wrappers are added below so unauthenticated requests are
+	// challenged before cross-origin request details are exposed. Custom
+	// middleware remains the outermost wrapper, as promised by Options.
+	handler = http.NewCrossOriginProtection().Handler(handler)
+	if opts.BasicAuthUsername != "" {
+		handler = basicAuthMiddleware(opts.BasicAuthUsername, opts.BasicAuthPassword)(handler)
+	}
+	// Deny framing even for authenticated HTML responses. Cross-origin request
+	// protection covers unsafe browser requests, but it does not prevent an
+	// attacker from embedding the dashboard and tricking an operator into
+	// interacting with it.
+	handler = browserSecurityHeaders(handler)
+	if opts.Middleware != nil {
+		handler = opts.Middleware(handler)
+		if handler == nil {
+			rc.Close()
+			i.Close()
+			panic("asynqmon.New: Middleware returned a nil handler")
+		}
+	}
 
 	return &HTTPHandler{
-		router:   muxRouter(opts, rc, i),
+		handler:  handler,
 		closers:  []func() error{rc.Close, i.Close},
 		rootPath: opts.RootPath,
 	}
+}
+
+func browserSecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Separate CSP headers are enforced cumulatively. Add this focused policy
+		// instead of replacing a broader policy supplied by the host application.
+		w.Header().Add("Content-Security-Policy", "frame-ancestors 'none'")
+		w.Header().Set("X-Frame-Options", "DENY")
+		next.ServeHTTP(w, r)
+	})
 }
 
 // Close closes connections to redis.
@@ -106,17 +154,7 @@ func (h *HTTPHandler) RootPath() string {
 var staticContents embed.FS
 
 func muxRouter(opts Options, rc redis.UniversalClient, inspector *asynq.Inspector) *mux.Router {
-		router := mux.NewRouter().PathPrefix(opts.RootPath).Subrouter()
-
-	// Enable Basic Auth only when both username and password are provided.
-	if opts.BasicAuthUsername != "" && opts.BasicAuthPassword != "" {
-		router.Use(
-			basicAuthMiddleware(
-				opts.BasicAuthUsername,
-				opts.BasicAuthPassword,
-			),
-		)
-	}
+	router := mux.NewRouter().PathPrefix(opts.RootPath).Subrouter()
 
 	var payloadFmt PayloadFormatter = DefaultPayloadFormatter
 	if opts.PayloadFormatter != nil {
@@ -129,7 +167,6 @@ func muxRouter(opts Options, rc redis.UniversalClient, inspector *asynq.Inspecto
 	}
 
 	api := router.PathPrefix("/api").Subrouter()
-
 
 	// Queue endpoints.
 	api.HandleFunc("/queues", newListQueuesHandlerFunc(inspector)).Methods("GET")
@@ -225,9 +262,6 @@ func muxRouter(opts Options, rc redis.UniversalClient, inspector *asynq.Inspecto
 	api.HandleFunc("/metrics", newGetMetricsHandlerFunc(http.DefaultClient, opts.PrometheusAddress)).Methods("GET")
 
 	// Restrict APIs when running in read-only mode.
-	if opts.ReadOnly {
-		api.Use(restrictToReadOnly)
-	}
 
 	// Everything else, route to uiAssetsHandler.
 	router.NotFoundHandler = &uiAssetsHandler{
@@ -251,24 +285,4 @@ func restrictToReadOnly(h http.Handler) http.Handler {
 		}
 		h.ServeHTTP(w, r)
 	})
-}
-
-func basicAuthMiddleware(username, password string) mux.MiddlewareFunc {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			user, pass, ok := r.BasicAuth()
-
-			userMatch := subtle.ConstantTimeCompare([]byte(user),[]byte(username)) == 1
-
-			passMatch := subtle.ConstantTimeCompare([]byte(pass),[]byte(password)) == 1
-
-			if !ok || !userMatch || !passMatch {
-				w.Header().Set("WWW-Authenticate", `Basic realm="Asynqmon"`)
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		})
-	}
 }

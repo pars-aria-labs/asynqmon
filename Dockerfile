@@ -1,34 +1,32 @@
+# syntax=docker/dockerfile:1
 #
 # First stage: 
 # Building a frontend.
 #
 
-FROM alpine:3.17 AS frontend
-
-# Move to a working directory (/static).
+FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend
 WORKDIR /static
-
-# https://stackoverflow.com/questions/69692842/error-message-error0308010cdigital-envelope-routinesunsupported
-ENV NODE_OPTIONS=--openssl-legacy-provider
-# Install npm (with latest nodejs) and yarn (globally, in silent mode).
-RUN apk add --update nodejs npm && \
-    npm i -g -s --unsafe-perm yarn
-
-# Copy only ./ui folder to the working directory.
+COPY ui/package.json ui/package-lock.json ./
+RUN npm ci --no-audit --no-fund
 COPY ui .
-
-# Run yarn scripts (install & build).
-RUN yarn install && yarn build
+RUN npm run build
 
 #
 # Second stage: 
 # Building a backend.
 #
 
-FROM golang:1.18-alpine AS backend
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS backend
+
+ARG TARGETOS
+ARG TARGETARCH
 
 # Move to a working directory (/build).
 WORKDIR /build
+
+# The final scratch image needs the system trust store when Redis or
+# Prometheus is configured with TLS.
+RUN apk add --no-cache ca-certificates
 
 # Copy and download dependencies.
 COPY go.mod go.sum ./
@@ -40,11 +38,10 @@ COPY . .
 # Copy frontend static files from /static to the root folder of the backend container.
 COPY --from=frontend ["/static/build", "ui/build"]
 
-# Set necessary environmet variables needed for the image and build the server.
-ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64
-
-# Run go build (with ldflags to reduce binary size).
-RUN go build -ldflags="-s -w" -o asynqmon ./cmd/asynqmon
+# Cross-compile for the selected target while running the compiler natively on
+# the builder. Frontend assets and CA certificates are architecture-neutral.
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -trimpath -ldflags="-s -w" -o asynqmon ./cmd/asynqmon
 
 #
 # Third stage: 
@@ -55,6 +52,9 @@ FROM scratch
 
 # Copy binary from /build to the root folder of the scratch container.
 COPY --from=backend ["/build/asynqmon", "/"]
+COPY --from=backend /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+USER 65534:65534
 
 # Command to run when starting the container.
 ENTRYPOINT ["/asynqmon"]

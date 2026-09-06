@@ -1448,18 +1448,21 @@ export function getTaskInfoAsync(qname: string, id: string) {
 
 export function listActiveTasksAsync(
   qname: string,
-  pageOpts?: PaginationOptions
+  pageOpts?: PaginationOptions,
+  signal?: AbortSignal,
 ) {
   return async (dispatch: Dispatch<TasksActionTypes>) => {
     dispatch({ type: LIST_ACTIVE_TASKS_BEGIN, queue: qname });
     try {
-      const response = await listActiveTasks(qname, pageOpts);
+      const response = await listActiveTasks(qname, pageOpts, signal);
+      if (signal?.aborted) return;
       dispatch({
         type: LIST_ACTIVE_TASKS_SUCCESS,
         queue: qname,
         payload: response,
       });
     } catch (error) {
+      if (signal?.aborted) return;
       console.error(
         "listActiveTasksAsync: ",
         toErrorStringWithHttpStatus(error)
@@ -1475,18 +1478,21 @@ export function listActiveTasksAsync(
 
 export function listPendingTasksAsync(
   qname: string,
-  pageOpts?: PaginationOptions
+  pageOpts?: PaginationOptions,
+  signal?: AbortSignal,
 ) {
   return async (dispatch: Dispatch<TasksActionTypes>) => {
     dispatch({ type: LIST_PENDING_TASKS_BEGIN, queue: qname });
     try {
-      const response = await listPendingTasks(qname, pageOpts);
+      const response = await listPendingTasks(qname, pageOpts, signal);
+      if (signal?.aborted) return;
       dispatch({
         type: LIST_PENDING_TASKS_SUCCESS,
         queue: qname,
         payload: response,
       });
     } catch (error) {
+      if (signal?.aborted) return;
       console.error(
         "listPendingTasksAsync: ",
         toErrorStringWithHttpStatus(error)
@@ -1502,18 +1508,21 @@ export function listPendingTasksAsync(
 
 export function listScheduledTasksAsync(
   qname: string,
-  pageOpts?: PaginationOptions
+  pageOpts?: PaginationOptions,
+  signal?: AbortSignal,
 ) {
   return async (dispatch: Dispatch<TasksActionTypes>) => {
     dispatch({ type: LIST_SCHEDULED_TASKS_BEGIN, queue: qname });
     try {
-      const response = await listScheduledTasks(qname, pageOpts);
+      const response = await listScheduledTasks(qname, pageOpts, signal);
+      if (signal?.aborted) return;
       dispatch({
         type: LIST_SCHEDULED_TASKS_SUCCESS,
         queue: qname,
         payload: response,
       });
     } catch (error) {
+      if (signal?.aborted) return;
       console.error(
         "listScheduledTasksAsync: ",
         toErrorStringWithHttpStatus(error)
@@ -1529,18 +1538,21 @@ export function listScheduledTasksAsync(
 
 export function listRetryTasksAsync(
   qname: string,
-  pageOpts?: PaginationOptions
+  pageOpts?: PaginationOptions,
+  signal?: AbortSignal,
 ) {
   return async (dispatch: Dispatch<TasksActionTypes>) => {
     dispatch({ type: LIST_RETRY_TASKS_BEGIN, queue: qname });
     try {
-      const response = await listRetryTasks(qname, pageOpts);
+      const response = await listRetryTasks(qname, pageOpts, signal);
+      if (signal?.aborted) return;
       dispatch({
         type: LIST_RETRY_TASKS_SUCCESS,
         queue: qname,
         payload: response,
       });
     } catch (error) {
+      if (signal?.aborted) return;
       console.error(
         "listRetryTasksAsync: ",
         toErrorStringWithHttpStatus(error)
@@ -1556,18 +1568,21 @@ export function listRetryTasksAsync(
 
 export function listArchivedTasksAsync(
   qname: string,
-  pageOpts?: PaginationOptions
+  pageOpts?: PaginationOptions,
+  signal?: AbortSignal,
 ) {
   return async (dispatch: Dispatch<TasksActionTypes>) => {
     dispatch({ type: LIST_ARCHIVED_TASKS_BEGIN, queue: qname });
     try {
-      const response = await listArchivedTasks(qname, pageOpts);
+      const response = await listArchivedTasks(qname, pageOpts, signal);
+      if (signal?.aborted) return;
       dispatch({
         type: LIST_ARCHIVED_TASKS_SUCCESS,
         queue: qname,
         payload: response,
       });
     } catch (error) {
+      if (signal?.aborted) return;
       console.error(
         "listArchivedTasksAsync: ",
         toErrorStringWithHttpStatus(error)
@@ -1583,18 +1598,21 @@ export function listArchivedTasksAsync(
 
 export function listCompletedTasksAsync(
   qname: string,
-  pageOpts?: PaginationOptions
+  pageOpts?: PaginationOptions,
+  signal?: AbortSignal,
 ) {
   return async (dispatch: Dispatch<TasksActionTypes>) => {
     try {
       dispatch({ type: LIST_COMPLETED_TASKS_BEGIN, queue: qname });
-      const response = await listCompletedTasks(qname, pageOpts);
+      const response = await listCompletedTasks(qname, pageOpts, signal);
+      if (signal?.aborted) return;
       dispatch({
         type: LIST_COMPLETED_TASKS_SUCCESS,
         queue: qname,
         payload: response,
       });
     } catch (error) {
+      if (signal?.aborted) return;
       console.error(
         "listCompletedTasksAsync: ",
         toErrorStringWithHttpStatus(error)
@@ -1611,7 +1629,8 @@ export function listCompletedTasksAsync(
 export function listAggregatingTasksAsync(
   qname: string,
   gname: string,
-  pageOpts?: PaginationOptions
+  pageOpts?: PaginationOptions,
+  signal?: AbortSignal,
 ) {
   return async (dispatch: Dispatch<TasksActionTypes>) => {
     try {
@@ -1620,7 +1639,8 @@ export function listAggregatingTasksAsync(
         queue: qname,
         group: gname,
       });
-      const response = await listAggregatingTasks(qname, gname, pageOpts);
+      const response = await listAggregatingTasks(qname, gname, pageOpts, signal);
+      if (signal?.aborted) return;
       dispatch({
         type: LIST_AGGREGATING_TASKS_SUCCESS,
         queue: qname,
@@ -1628,6 +1648,7 @@ export function listAggregatingTasksAsync(
         payload: response,
       });
     } catch (error) {
+      if (signal?.aborted) return;
       console.error(
         "listAggregatingTasksAsync: ",
         toErrorStringWithHttpStatus(error)

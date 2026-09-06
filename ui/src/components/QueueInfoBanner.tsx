@@ -1,16 +1,22 @@
 import React from "react";
 import { connect, ConnectedProps } from "react-redux";
-import { makeStyles } from "@material-ui/core/styles";
-import Typography from "@material-ui/core/Typography";
+import { makeStyles } from "tss-react/mui";
+
+import Typography from "@mui/material/Typography";
 import prettyBytes from "pretty-bytes";
 import { AppState } from "../store";
 import { percentage } from "../utils";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   banner: {
     paddingTop: theme.spacing(2),
     paddingBottom: theme.spacing(2),
-    display: "flex",
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+    gap: theme.spacing(2),
+    background: theme.palette.background.paper,
+    borderRadius: 12,
+    border: `1px solid ${theme.palette.divider}`,
   },
   bannerItem: {
     flexGrow: 1,
@@ -36,7 +42,7 @@ const connector = connect(mapStateToProps);
 type ReduxProps = ConnectedProps<typeof connector>;
 
 function QueueInfoBanner(props: Props & ReduxProps) {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const { queue, qname } = props;
   return (
     <div className={classes.banner}>

@@ -9,7 +9,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { useTheme, Theme } from "@material-ui/core/styles";
+import { useTheme, Theme } from "@mui/material/styles";
 import { DailyStat } from "../api";
 
 interface Props {
@@ -29,21 +29,39 @@ export default function DailyStatsChart(props: Props) {
   return (
     <ResponsiveContainer>
       <LineChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" />
+        <CartesianGrid
+          strokeDasharray="3 3"
+          vertical={false}
+          stroke={theme.palette.divider}
+        />
         <XAxis
+          tick={{ fontSize: 11 }}
           dataKey="date"
           minTickGap={10}
           stroke={theme.palette.text.secondary}
         />
-        <YAxis stroke={theme.palette.text.secondary} />
-        <Tooltip />
+        <YAxis
+          width={42}
+          tick={{ fontSize: 11 }}
+          stroke={theme.palette.text.secondary}
+        />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: theme.palette.background.paper,
+            borderColor: theme.palette.divider,
+            borderRadius: 10,
+            color: theme.palette.text.primary,
+          }}
+        />
         <Legend />
         <Line
+          isAnimationActive={false}
           type="monotone"
           dataKey="succeeded"
           stroke={theme.palette.success.main}
         />
         <Line
+          isAnimationActive={false}
           type="monotone"
           dataKey="failed"
           stroke={theme.palette.error.main}
@@ -55,7 +73,7 @@ export default function DailyStatsChart(props: Props) {
 
 function makeChartData(
   queueStats: { [qname: string]: DailyStat[] },
-  numDays: number
+  numDays: number,
 ): ChartData[] {
   const dataByDate: { [date: string]: ChartData } = {};
   for (const qname in queueStats) {

@@ -26,16 +26,18 @@ export type QueueStatsActionTypes =
   | ListQueueStatsSuccessAction
   | ListQueueStatsErrorAction;
 
-export function listQueueStatsAsync() {
+export function listQueueStatsAsync(signal?: AbortSignal) {
   return async (dispatch: Dispatch<QueueStatsActionTypes>) => {
     dispatch({ type: LIST_QUEUE_STATS_BEGIN });
     try {
-      const response = await listQueueStats();
+      const response = await listQueueStats(signal);
+      if (signal?.aborted) return;
       dispatch({
         type: LIST_QUEUE_STATS_SUCCESS,
         payload: response,
       });
     } catch (error) {
+      if (signal?.aborted) return;
       console.error(
         "listQueueStatsAsync: ",
         toErrorStringWithHttpStatus(error)

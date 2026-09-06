@@ -1,11 +1,14 @@
+import { useURLFilters } from "../hooks/useURLFilters";
+import CopyButton from "./common/CopyButton";
 import React, { useState } from "react";
 import { connect, ConnectedProps } from "react-redux";
-import { makeStyles } from "@material-ui/core/styles";
-import Typography from "@material-ui/core/Typography";
-import Paper from "@material-ui/core/Paper";
-import Chip from "@material-ui/core/Chip";
-import InputBase from "@material-ui/core/InputBase";
-import SearchIcon from "@material-ui/icons/Search";
+import { makeStyles } from "tss-react/mui";
+
+import Typography from "@mui/material/Typography";
+import Paper from "@mui/material/Paper";
+import { Tabs, Tab } from "@mui/material";
+import InputBase from "@mui/material/InputBase";
+import SearchIcon from "@mui/icons-material/Search";
 import ActiveTasksTable from "./ActiveTasksTable";
 import PendingTasksTable from "./PendingTasksTable";
 import ScheduledTasksTable from "./ScheduledTasksTable";
@@ -32,9 +35,9 @@ function TabPanel(props: TabPanelProps) {
     <div
       role="tabpanel"
       hidden={value !== selected}
-      id={`scrollable-auto-tabpanel-${selected}`}
-      aria-labelledby={`scrollable-auto-tab-${selected}`}
-      style={{ flex: 1, overflowY: "scroll" }}
+      id={`task-panel-${value}`}
+      aria-labelledby={`task-tab-${value}`}
+      style={{ minWidth: 0, overflowX: "auto" }}
       {...other}
     >
       {value === selected && children}
@@ -45,7 +48,7 @@ function TabPanel(props: TabPanelProps) {
 function mapStatetoProps(state: AppState, ownProps: Props) {
   // TODO: Add loading state for each queue.
   const queueInfo = state.queues.data.find(
-    (q: QueueInfo) => q.name === ownProps.queue
+    (q: QueueInfo) => q.name === ownProps.queue,
   );
   const currentStats = queueInfo
     ? queueInfo.currentStats
@@ -77,7 +80,7 @@ interface Props {
   selected: string;
 }
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   container: {
     width: "100%",
     height: "100%",
@@ -87,6 +90,8 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     alignItems: "center",
     paddingTop: theme.spacing(1),
+    flexWrap: "wrap",
+    gap: theme.spacing(1),
   },
   heading: {
     paddingTop: theme.spacing(1),
@@ -139,7 +144,7 @@ const useStyles = makeStyles((theme) => ({
   inputInput: {
     padding: theme.spacing(1, 1, 1, 0),
     // vertical padding + font size from searchIcon
-    paddingLeft: `calc(1em + ${theme.spacing(4)}px)`,
+    paddingLeft: `calc(1em + ${theme.spacing(4)})`,
     width: "100%",
     fontSize: "0.85rem",
   },
@@ -147,7 +152,7 @@ const useStyles = makeStyles((theme) => ({
 
 function TasksTableContainer(props: Props & ReduxProps) {
   const { currentStats } = props;
-  const classes = useStyles();
+  const { classes } = useStyles();
   const history = useHistory();
   const chips = [
     { key: "active", label: "Active", count: currentStats.active },
@@ -163,7 +168,9 @@ function TasksTableContainer(props: Props & ReduxProps) {
     { key: "completed", label: "Completed", count: currentStats.completed },
   ];
 
-  const [searchQuery, setSearchQuery] = useState<string>("");
+  const { filters, setFilters } = useURLFilters();
+  const searchQuery = filters.get("task") || "";
+  const setSearchQuery = (value: string) => setFilters({ task: value }, true);
 
   return (
     <Paper variant="outlined" className={classes.container}>
@@ -171,22 +178,32 @@ function TasksTableContainer(props: Props & ReduxProps) {
         <Typography color="textPrimary" className={classes.heading}>
           Tasks
         </Typography>
-        <div>
+        <CopyButton link label="Copy link" />
+        <Tabs
+          value={props.selected}
+          onChange={(_, value) =>
+            setFilters({ status: value, page: null, group: null })
+          }
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
+          aria-label="Task states"
+          sx={{ width: "100%", order: 3 }}
+        >
           {chips.map((c) => (
-            <Chip
+            <Tab
               key={c.key}
-              className={classes.chip}
+              id={`task-tab-${c.key}`}
+              aria-controls={`task-panel-${c.key}`}
+              value={c.key}
               label={
-                <div>
+                <span>
                   {c.label} <span className={classes.taskcount}>{c.count}</span>
-                </div>
+                </span>
               }
-              variant="outlined"
-              color={props.selected === c.key ? "primary" : "default"}
-              onClick={() => history.push(queueDetailsPath(props.queue, c.key))}
             />
           ))}
-        </div>
+        </Tabs>
         <div className={classes.searchbar}>
           <div className={classes.search}>
             <div className={classes.searchIcon}>
@@ -207,7 +224,7 @@ function TasksTableContainer(props: Props & ReduxProps) {
                 onKeyDown: (e) => {
                   if (e.key === "Enter") {
                     history.push(
-                      taskDetailsPath(props.queue, searchQuery.trim())
+                      taskDetailsPath(props.queue, searchQuery.trim()),
                     );
                   }
                 },

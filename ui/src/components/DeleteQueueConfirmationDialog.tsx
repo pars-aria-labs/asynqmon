@@ -1,43 +1,28 @@
 import React from "react";
-import { connect, ConnectedProps } from "react-redux";
-import Button from "@material-ui/core/Button";
-import Dialog from "@material-ui/core/Dialog";
-import DialogActions from "@material-ui/core/DialogActions";
-import DialogContent from "@material-ui/core/DialogContent";
-import DialogContentText from "@material-ui/core/DialogContentText";
-import DialogTitle from "@material-ui/core/DialogTitle";
+import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
 import { Queue } from "../api";
-import { AppState } from "../store";
-import { deleteQueueAsync } from "../actions/queuesActions";
+
+interface QueueWithRequestState extends Queue {
+  requestPending: boolean;
+}
 
 interface Props {
-  queue: Queue | null; // queue to delete
+  queue: QueueWithRequestState | null; // queue to delete
   onClose: () => void;
+  onDelete: (qname: string) => Promise<void>;
 }
 
-function mapStateToProps(state: AppState, ownProps: Props) {
-  let requestPending = false;
-  if (ownProps.queue !== null) {
-    const q = state.queues.data.find((q) => q.name === ownProps.queue?.queue);
-    if (q !== undefined) {
-      requestPending = q.requestPending;
-    }
-  }
-  return {
-    requestPending,
-  };
-}
-
-const connector = connect(mapStateToProps, { deleteQueueAsync });
-
-type ReduxProps = ConnectedProps<typeof connector>;
-
-function DeleteQueueConfirmationDialog(props: Props & ReduxProps) {
-  const handleDeleteClick = () => {
+export default function DeleteQueueConfirmationDialog(props: Props) {
+  const handleDeleteClick = async () => {
     if (!props.queue) {
       return;
     }
-    props.deleteQueueAsync(props.queue.queue);
+    await props.onDelete(props.queue.queue);
     props.onClose();
   };
   return (
@@ -55,7 +40,7 @@ function DeleteQueueConfirmationDialog(props: Props & ReduxProps) {
             </DialogTitle>
             <DialogContent>
               <DialogContentText id="alert-dialog-description">
-                You are trying to delete a non-emtpy queue "{props.queue.queue}
+                You are trying to delete a non-empty queue "{props.queue.queue}
                 ". Please empty the queue first before deleting.
               </DialogContentText>
             </DialogContent>
@@ -78,14 +63,14 @@ function DeleteQueueConfirmationDialog(props: Props & ReduxProps) {
             <DialogActions>
               <Button
                 onClick={props.onClose}
-                disabled={props.requestPending}
+                disabled={props.queue.requestPending}
                 color="primary"
               >
                 Cancel
               </Button>
               <Button
-                onClick={handleDeleteClick}
-                disabled={props.requestPending}
+                onClick={() => void handleDeleteClick()}
+                disabled={props.queue.requestPending}
                 color="primary"
                 autoFocus
               >
@@ -97,5 +82,3 @@ function DeleteQueueConfirmationDialog(props: Props & ReduxProps) {
     </Dialog>
   );
 }
-
-export default connector(DeleteQueueConfirmationDialog);

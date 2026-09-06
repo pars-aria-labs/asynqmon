@@ -58,16 +58,18 @@ export type SchedulerEntriesActionTypes =
   | ListSchedulerEnqueueEventSuccessAction
   | ListSchedulerEnqueueEventErrorAction;
 
-export function listSchedulerEntriesAsync() {
+export function listSchedulerEntriesAsync(signal?: AbortSignal) {
   return async (dispatch: Dispatch<SchedulerEntriesActionTypes>) => {
     dispatch({ type: LIST_SCHEDULER_ENTRIES_BEGIN });
     try {
-      const response = await listSchedulerEntries();
+      const response = await listSchedulerEntries(signal);
+      if (signal?.aborted) return;
       dispatch({
         type: LIST_SCHEDULER_ENTRIES_SUCCESS,
         payload: response,
       });
     } catch (error) {
+      if (signal?.aborted) return;
       console.error(
         `listSchedulerEnqueueEventsAsync: ${toErrorStringWithHttpStatus(error)}`
       );

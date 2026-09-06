@@ -1,13 +1,13 @@
-import Checkbox from "@material-ui/core/Checkbox";
-import IconButton from "@material-ui/core/IconButton";
-import TableCell from "@material-ui/core/TableCell";
-import TableRow from "@material-ui/core/TableRow";
-import Tooltip from "@material-ui/core/Tooltip";
-import ArchiveIcon from "@material-ui/icons/Archive";
-import DeleteIcon from "@material-ui/icons/Delete";
-import FileCopyOutlinedIcon from "@material-ui/icons/FileCopyOutlined";
-import MoreHorizIcon from "@material-ui/icons/MoreHoriz";
-import PlayArrowIcon from "@material-ui/icons/PlayArrow";
+import Checkbox from "@mui/material/Checkbox";
+import IconButton from "@mui/material/IconButton";
+import TableCell from "@mui/material/TableCell";
+import TableRow from "@mui/material/TableRow";
+import Tooltip from "@mui/material/Tooltip";
+import ArchiveIcon from "@mui/icons-material/Archive";
+import DeleteIcon from "@mui/icons-material/Delete";
+import FileCopyOutlinedIcon from "@mui/icons-material/FileCopyOutlined";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import React from "react";
 import { connect, ConnectedProps } from "react-redux";
 import { useHistory } from "react-router-dom";
@@ -80,7 +80,7 @@ const columns: TableColumn[] = [
 
 function Row(props: RowProps) {
   const { task } = props;
-  const classes = useRowStyles();
+  const { classes } = useRowStyles();
   const history = useHistory();
   return (
     <TableRow
@@ -111,7 +111,7 @@ function Row(props: RowProps) {
                 navigator.clipboard.writeText(task.id);
               }}
               size="small"
-              className={classes.copyButton}
+              className={`${classes.copyButton} task-copy-button`}
             >
               <FileCopyOutlinedIcon fontSize="small" />
             </IconButton>
@@ -181,8 +181,16 @@ function Row(props: RowProps) {
 }
 
 function AggregatingTasksTable(props: Props & ReduxProps) {
-  const listTasks = (qname: string, pgn?: PaginationOptions) =>
-    props.listAggregatingTasksAsync(qname, props.selectedGroup, pgn);
+  const listTasks = React.useCallback(
+    (qname: string, pgn?: PaginationOptions, signal?: AbortSignal) =>
+      props.listAggregatingTasksAsync(
+        qname,
+        props.selectedGroup,
+        pgn,
+        signal,
+      ),
+    [props.listAggregatingTasksAsync, props.selectedGroup],
+  );
 
   const deleteAllTasks = (qname: string) =>
     props.deleteAllAggregatingTasksAsync(qname, props.selectedGroup);
@@ -200,7 +208,7 @@ function AggregatingTasksTable(props: Props & ReduxProps) {
     props.batchArchiveAggregatingTasksAsync(
       qname,
       props.selectedGroup,
-      taskIds
+      taskIds,
     );
 
   const batchRunTasks = (qname: string, taskIds: string[]) =>

@@ -9,7 +9,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { useTheme, Theme } from "@material-ui/core/styles";
+import { useTheme, Theme } from "@mui/material/styles";
 
 interface Props {
   data: ProcessedStats[];
@@ -26,17 +26,42 @@ function ProcessedTasksChart(props: Props) {
   return (
     <ResponsiveContainer>
       <BarChart data={props.data} maxBarSize={120}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="queue" stroke={theme.palette.text.secondary} />
-        <YAxis stroke={theme.palette.text.secondary} />
-        <Tooltip />
+        <CartesianGrid
+          strokeDasharray="3 3"
+          vertical={false}
+          stroke={theme.palette.divider}
+        />
+        <XAxis
+          tick={{ fontSize: 11 }}
+          dataKey="queue"
+          stroke={theme.palette.text.secondary}
+        />
+        <YAxis
+          width={42}
+          tick={{ fontSize: 11 }}
+          stroke={theme.palette.text.secondary}
+        />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: theme.palette.background.paper,
+            borderColor: theme.palette.divider,
+            borderRadius: 10,
+            color: theme.palette.text.primary,
+          }}
+        />
         <Legend />
         <Bar
+          isAnimationActive={false}
           dataKey="succeeded"
           stackId="a"
           fill={theme.palette.success.light}
         />
-        <Bar dataKey="failed" stackId="a" fill={theme.palette.error.light} />
+        <Bar
+          isAnimationActive={false}
+          dataKey="failed"
+          stackId="a"
+          fill={theme.palette.error.light}
+        />
       </BarChart>
     </ResponsiveContainer>
   );

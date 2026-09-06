@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"crypto/subtle"
 	"crypto/tls"
 	"flag"
@@ -15,7 +16,7 @@ import (
 
 	"github.com/hibiken/asynq"
 	"github.com/hibiken/asynq/x/metrics"
-	"github.com/hibiken/asynqmon"
+	"github.com/pars-aria-labs/asynqmon"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
@@ -80,12 +81,35 @@ func parseFlags(progname string, args []string) (cfg *Config, output string, err
 	flags.StringVar(&conf.BasicAuthUsername, "basic-auth-username", getEnvDefaultString("BASIC_AUTH_USERNAME", ""), "username for HTTP basic authentication")
 	flags.StringVar(&conf.BasicAuthPassword, "basic-auth-password", getEnvDefaultString("BASIC_AUTH_PASSWORD", ""), "password for HTTP basic authentication")
 
+	// DefValue is presentation-only after registration. Clear it for values that
+	// may contain credentials or internal service addresses so --help cannot
+	// echo secrets sourced from the environment. The parsed defaults in conf are
+	// intentionally left unchanged.
+	for _, name := range []string{
+		"redis-password",
+		"redis-url",
+		"prometheus-addr",
+		"basic-auth-password",
+	} {
+		flags.Lookup(name).DefValue = ""
+	}
+
 	err = flags.Parse(args)
 	if err != nil {
 		return nil, buf.String(), err
 	}
+	if err := validateConfig(&conf); err != nil {
+		return nil, buf.String(), err
+	}
 	conf.Args = flags.Args()
 	return &conf, buf.String(), nil
+}
+
+func validateConfig(cfg *Config) error {
+	if (cfg.BasicAuthUsername == "") != (cfg.BasicAuthPassword == "") {
+		return fmt.Errorf("basic authentication requires both --basic-auth-username and --basic-auth-password (or both BASIC_AUTH_USERNAME and BASIC_AUTH_PASSWORD)")
+	}
+	return nil
 }
 
 func makeTLSConfig(cfg *Config) *tls.Config {
@@ -145,7 +169,7 @@ func main() {
 	cfg, output, err := parseFlags(os.Args[0], os.Args[1:])
 	if err == flag.ErrHelp {
 		fmt.Println(output)
-		os.Exit(2)
+		os.Exit(0)
 	} else if err != nil {
 		fmt.Printf("error: %v\n", err)
 		fmt.Println(output)
@@ -187,9 +211,11 @@ func main() {
 	}
 
 	srv := &http.Server{
-		Handler:      withOptionalBasicAuth(mux, cfg),
-		Addr:         fmt.Sprintf(":%d", cfg.Port),
-		WriteTimeout: 10 * time.Second,
+		Handler: withOptionalBasicAuth(mux, cfg),
+		Addr:    fmt.Sprintf(":%d", cfg.Port),
+		// Leave enough time to deliver the metrics proxy's bounded 10-second
+		// timeout response instead of closing the socket at the same deadline.
+		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  10 * time.Second,
 	}
 
@@ -249,19 +275,30 @@ func getEnvOrDefaultBool(key string, def bool) bool {
 }
 
 func withOptionalBasicAuth(h http.Handler, cfg *Config) http.Handler {
-	if cfg.BasicAuthUsername == "" || cfg.BasicAuthPassword == "" {
+	// parseFlags validates this before the server is constructed. Keep this
+	// guard here as well so future internal callers cannot silently disable
+	// authentication with a partial configuration.
+	if err := validateConfig(cfg); err != nil {
+		panic(err)
+	}
+	if cfg.BasicAuthUsername == "" {
 		return h
 	}
 
-	expectedUsername := []byte(cfg.BasicAuthUsername)
-	expectedPassword := []byte(cfg.BasicAuthPassword)
+	expectedUsername := sha256.Sum256([]byte(cfg.BasicAuthUsername))
+	expectedPassword := sha256.Sum256([]byte(cfg.BasicAuthPassword))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		username, password, ok := r.BasicAuth()
-		if !ok ||
-			subtle.ConstantTimeCompare([]byte(username), expectedUsername) != 1 ||
-			subtle.ConstantTimeCompare([]byte(password), expectedPassword) != 1 {
-			w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+		actualUsername := sha256.Sum256([]byte(username))
+		actualPassword := sha256.Sum256([]byte(password))
+		usernameMatch := subtle.ConstantTimeCompare(actualUsername[:], expectedUsername[:])
+		passwordMatch := subtle.ConstantTimeCompare(actualPassword[:], expectedPassword[:])
+		// This wrapper covers the dashboard and the optional /metrics exporter.
+		// Do not let shared caches reuse either authenticated or challenge responses.
+		w.Header().Set("Cache-Control", "private, no-store")
+		if !ok || usernameMatch&passwordMatch != 1 {
+			w.Header().Set("WWW-Authenticate", `Basic realm="Asynqmon", charset="UTF-8"`)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}

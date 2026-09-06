@@ -1,5 +1,5 @@
 import React from "react";
-import { useTheme, Theme } from "@material-ui/core/styles";
+import { useTheme, Theme } from "@mui/material/styles";
 import { Light as ReactSyntaxHighlighter } from "react-syntax-highlighter";
 import json from "react-syntax-highlighter/dist/esm/languages/hljs/json";
 import styleDark from "react-syntax-highlighter/dist/esm/styles/hljs/atom-one-dark";

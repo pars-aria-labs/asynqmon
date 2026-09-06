@@ -1,15 +1,16 @@
 import React, { useState } from "react";
 import { Link, useHistory } from "react-router-dom";
-import { emphasize, withStyles, Theme } from "@material-ui/core/styles";
-import Breadcrumbs from "@material-ui/core/Breadcrumbs";
-import Chip from "@material-ui/core/Chip";
-import Menu from "@material-ui/core/Menu";
-import MenuItem from "@material-ui/core/MenuItem";
-import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
+import { withStyles } from "tss-react/mui";
+import { emphasize, Theme } from "@mui/material/styles";
+import Breadcrumbs from "@mui/material/Breadcrumbs";
+import Chip from "@mui/material/Chip";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { paths as getPaths, queueDetailsPath } from "../paths";
 import { isDarkTheme } from "../theme";
 
-const StyledBreadcrumb = withStyles((theme: Theme) => ({
+const StyledBreadcrumb = withStyles(Chip, (theme: Theme) => ({
   root: {
     backgroundColor: isDarkTheme(theme)
       ? "#303030"
@@ -25,7 +26,7 @@ const StyledBreadcrumb = withStyles((theme: Theme) => ({
       backgroundColor: emphasize(theme.palette.action.hover, 0.12),
     },
   },
-}))(Chip) as typeof Chip; // Note: need a type cast here because https://github.com/Microsoft/TypeScript/issues/26591
+})) as typeof Chip; // Note: need a type cast here because https://github.com/Microsoft/TypeScript/issues/26591
 
 interface Props {
   // All queue names.

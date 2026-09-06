@@ -1,8 +1,9 @@
-import { Theme, withStyles } from "@material-ui/core/styles";
-import Tooltip from "@material-ui/core/Tooltip";
+import { withStyles } from "tss-react/mui";
+import { Theme } from "@mui/material/styles";
+import Tooltip from "@mui/material/Tooltip";
 
 // Export custom style tooltip.
-export default withStyles((theme: Theme) => ({
+export default withStyles(Tooltip, (theme: Theme) => ({
   tooltip: {
     backgroundColor: "#f5f5f9",
     color: "rgba(0, 0, 0, 0.87)",
@@ -10,4 +11,4 @@ export default withStyles((theme: Theme) => ({
     fontSize: theme.typography.pxToRem(12),
     border: "1px solid #dadde9",
   },
-}))(Tooltip);
+}));

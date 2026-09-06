@@ -30,14 +30,17 @@ export type MetricsActionTypes =
 export function getMetricsAsync(
   endTime: number,
   duration: number,
-  queues: string[]
+  queues: string[],
+  signal?: AbortSignal,
 ) {
   return async (dispatch: Dispatch<MetricsActionTypes>) => {
     dispatch({ type: GET_METRICS_BEGIN });
     try {
-      const response = await getMetrics(endTime, duration, queues);
+      const response = await getMetrics(endTime, duration, queues, signal);
+      if (signal?.aborted) return;
       dispatch({ type: GET_METRICS_SUCCESS, payload: response });
     } catch (error) {
+      if (signal?.aborted) return;
       console.error(`getMetricsAsync: ${toErrorStringWithHttpStatus(error)}`);
       dispatch({
         type: GET_METRICS_ERROR,

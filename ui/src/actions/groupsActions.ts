@@ -30,17 +30,19 @@ export type GroupsActionTypes =
   | ListGroupsSuccessAction
   | ListGroupsErrorAction;
 
-export function listGroupsAsync(qname: string) {
+export function listGroupsAsync(qname: string, signal?: AbortSignal) {
   return async (dispatch: Dispatch<GroupsActionTypes>) => {
     dispatch({ type: LIST_GROUPS_BEGIN, queue: qname });
     try {
-      const response = await listGroups(qname);
+      const response = await listGroups(qname, signal);
+      if (signal?.aborted) return;
       dispatch({
         type: LIST_GROUPS_SUCCESS,
         payload: response,
         queue: qname,
       });
     } catch (error) {
+      if (signal?.aborted) return;
       console.error(`listGroupsAsync: ${toErrorStringWithHttpStatus(error)}`);
       dispatch({
         type: LIST_GROUPS_ERROR,

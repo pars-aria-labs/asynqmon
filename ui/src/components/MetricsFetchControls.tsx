@@ -1,37 +1,32 @@
 import React from "react";
-import { connect, ConnectedProps } from "react-redux";
-import { makeStyles, Theme } from "@material-ui/core/styles";
-import Button, { ButtonProps } from "@material-ui/core/Button";
-import ButtonGroup from "@material-ui/core/ButtonGroup";
-import IconButton from "@material-ui/core/IconButton";
-import Popover from "@material-ui/core/Popover";
-import Radio from "@material-ui/core/Radio";
-import RadioGroup from "@material-ui/core/RadioGroup";
-import Checkbox from "@material-ui/core/Checkbox";
-import FormControlLabel from "@material-ui/core/FormControlLabel";
-import FormControl from "@material-ui/core/FormControl";
-import FormGroup from "@material-ui/core/FormGroup";
-import FormLabel from "@material-ui/core/FormLabel";
-import TextField from "@material-ui/core/TextField";
-import Typography from "@material-ui/core/Typography";
-import ArrowLeftIcon from "@material-ui/icons/ArrowLeft";
-import ArrowRightIcon from "@material-ui/icons/ArrowRight";
-import FilterListIcon from "@material-ui/icons/FilterList";
+import { makeStyles } from "tss-react/mui";
+import Button, { ButtonProps } from "@mui/material/Button";
+import ButtonGroup from "@mui/material/ButtonGroup";
+import IconButton from "@mui/material/IconButton";
+import Popover from "@mui/material/Popover";
+import Radio from "@mui/material/Radio";
+import RadioGroup from "@mui/material/RadioGroup";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormControl from "@mui/material/FormControl";
+import FormGroup from "@mui/material/FormGroup";
+import FormLabel from "@mui/material/FormLabel";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
+import ArrowLeftIcon from "@mui/icons-material/ArrowLeft";
+import ArrowRightIcon from "@mui/icons-material/ArrowRight";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import dayjs from "dayjs";
 import { currentUnixtime, parseDuration } from "../utils";
-import { AppState } from "../store";
 import { isDarkTheme } from "../theme";
+import { MAX_METRICS_DURATION_SECONDS } from "../metricsLimits";
 
-function mapStateToProps(state: AppState) {
-  return { pollInterval: state.settings.pollInterval };
-}
-
-const connector = connect(mapStateToProps);
-type ReduxProps = ConnectedProps<typeof connector>;
-
-interface Props extends ReduxProps {
+interface Props {
   // Specifies the endtime in Unix time seconds.
   endTimeSec: number;
+  // Whether endTimeSec came from a fixed URL value. A timestamp close to now
+  // is ambiguous on its own (it can also mean "Freeze at now").
+  isEndTimeFixed: boolean;
   onEndTimeChange: (t: number, isEndTimeFixed: boolean) => void;
 
   // Specifies the duration in seconds.
@@ -58,7 +53,7 @@ interface State {
 type EndTimeOption = "real_time" | "freeze_at_now" | "custom";
 type DurationOption = "1h" | "6h" | "1d" | "8d" | "30d" | "custom";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     display: "flex",
     alignItems: "center",
@@ -150,21 +145,19 @@ const minute = 60;
 const hour = 60 * minute;
 const day = 24 * hour;
 
-function getInitialState(endTimeSec: number, durationSec: number): State {
-  let endTimeOption: EndTimeOption = "real_time";
-  let customEndTime = "";
+function getInitialState(
+  endTimeSec: number,
+  durationSec: number,
+  isEndTimeFixed: boolean,
+): State {
+  const endTimeOption: EndTimeOption = isEndTimeFixed
+    ? "custom"
+    : "real_time";
+  const customEndTime = isEndTimeFixed
+    ? new Date(endTimeSec * 1000).toISOString()
+    : "";
   let durationOption: DurationOption = "1h";
   let customDuration = "";
-
-  const now = currentUnixtime();
-  // Account for 1s difference, may just happen to elapse 1s
-  // between the parent component's render and this component's render.
-  if (now <= endTimeSec && endTimeSec <= now + 1) {
-    endTimeOption = "real_time";
-  } else {
-    endTimeOption = "custom";
-    customEndTime = new Date(endTimeSec * 1000).toISOString();
-  }
 
   switch (durationSec) {
     case 1 * hour:
@@ -197,20 +190,71 @@ function getInitialState(endTimeSec: number, durationSec: number): State {
   };
 }
 
-function MetricsFetchControls(props: Props) {
-  const classes = useStyles();
+export function MetricsFetchControls(props: Props) {
+  const { classes } = useStyles();
 
   const [state, setState] = React.useState<State>(
-    getInitialState(props.endTimeSec, props.durationSec)
+    getInitialState(
+      props.endTimeSec,
+      props.durationSec,
+      props.isEndTimeFixed,
+    ),
   );
   const [timePopoverAnchorElem, setTimePopoverAnchorElem] =
     React.useState<HTMLButtonElement | null>(null);
 
   const [queuePopoverAnchorElem, setQueuePopoverAnchorElem] =
     React.useState<HTMLButtonElement | null>(null);
+  const pendingFreezeTime = React.useRef<number | null>(null);
+  const previousEndTimeFixed = React.useRef(props.isEndTimeFixed);
+
+  // URL navigation changes these props without remounting the controls. Keep
+  // fixed timestamps in sync, but do not treat each realtime display tick as a
+  // mode transition: the user may be editing a custom end time before submit.
+  React.useEffect(() => {
+    const wasFixed = previousEndTimeFixed.current;
+    previousEndTimeFixed.current = props.isEndTimeFixed;
+    setState((previous) => {
+      if (!props.isEndTimeFixed) {
+        if (!wasFixed) return previous;
+        return {
+          ...previous,
+          endTimeOption: "real_time",
+          customEndTime: "",
+          customEndTimeError: "",
+        };
+      }
+      if (
+        previous.endTimeOption === "freeze_at_now" &&
+        pendingFreezeTime.current === props.endTimeSec
+      ) {
+        return previous;
+      }
+      return {
+        ...previous,
+        endTimeOption: "custom",
+        customEndTime: new Date(props.endTimeSec * 1000).toISOString(),
+        customEndTimeError: "",
+      };
+    });
+  }, [props.endTimeSec, props.isEndTimeFixed]);
+
+  React.useEffect(() => {
+    const next = getInitialState(
+      0,
+      props.durationSec,
+      false,
+    );
+    setState((previous) => ({
+      ...previous,
+      durationOption: next.durationOption,
+      customDuration: next.customDuration,
+      customDurationError: "",
+    }));
+  }, [props.durationSec]);
 
   const handleEndTimeOptionChange = (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const selectedOpt = (event.target as HTMLInputElement)
       .value as EndTimeOption;
@@ -222,18 +266,23 @@ function MetricsFetchControls(props: Props) {
     }));
     switch (selectedOpt) {
       case "real_time":
+        pendingFreezeTime.current = null;
         props.onEndTimeChange(currentUnixtime(), /*isEndTimeFixed=*/ false);
         break;
-      case "freeze_at_now":
-        props.onEndTimeChange(currentUnixtime(), /*isEndTimeFixed=*/ true);
+      case "freeze_at_now": {
+        const now = currentUnixtime();
+        pendingFreezeTime.current = now;
+        props.onEndTimeChange(now, /*isEndTimeFixed=*/ true);
         break;
+      }
       case "custom":
+        pendingFreezeTime.current = null;
       // No-op
     }
   };
 
   const handleDurationOptionChange = (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const selectedOpt = (event.target as HTMLInputElement)
       .value as DurationOption;
@@ -266,7 +315,7 @@ function MetricsFetchControls(props: Props) {
   };
 
   const handleCustomDurationChange = (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     event.persist(); // https://reactjs.org/docs/legacy-event-pooling.html
     setState((prevState) => ({
@@ -276,7 +325,7 @@ function MetricsFetchControls(props: Props) {
   };
 
   const handleCustomEndTimeChange = (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     event.persist(); // https://reactjs.org/docs/legacy-event-pooling.html
     setState((prevState) => ({
@@ -286,11 +335,14 @@ function MetricsFetchControls(props: Props) {
   };
 
   const handleCustomDurationKeyDown = (
-    event: React.KeyboardEvent<HTMLInputElement>
+    event: React.KeyboardEvent<HTMLInputElement>,
   ) => {
     if (event.key === "Enter") {
       try {
         const d = parseDuration(state.customDuration);
+        if (d > MAX_METRICS_DURATION_SECONDS) {
+          throw new Error("duration exceeds the supported range");
+        }
         setState((prevState) => ({
           ...prevState,
           durationOption: "custom",
@@ -300,14 +352,14 @@ function MetricsFetchControls(props: Props) {
       } catch (error) {
         setState((prevState) => ({
           ...prevState,
-          customDurationError: "Duration invalid",
+          customDurationError: "Use a duration from 1s to 30d",
         }));
       }
     }
   };
 
   const handleCustomEndTimeKeyDown = (
-    event: React.KeyboardEvent<HTMLInputElement>
+    event: React.KeyboardEvent<HTMLInputElement>,
   ) => {
     if (event.key === "Enter") {
       const timeUsecOrNaN = Date.parse(state.customEndTime);
@@ -325,13 +377,13 @@ function MetricsFetchControls(props: Props) {
       }));
       props.onEndTimeChange(
         Math.floor(timeUsecOrNaN / 1000),
-        /* isEndTimeFixed= */ true
+        /* isEndTimeFixed= */ true,
       );
     }
   };
 
   const handleOpenTimePopover = (
-    event: React.MouseEvent<HTMLButtonElement>
+    event: React.MouseEvent<HTMLButtonElement>,
   ) => {
     setTimePopoverAnchorElem(event.currentTarget);
   };
@@ -341,7 +393,7 @@ function MetricsFetchControls(props: Props) {
   };
 
   const handleOpenQueuePopover = (
-    event: React.MouseEvent<HTMLButtonElement>
+    event: React.MouseEvent<HTMLButtonElement>,
   ) => {
     setQueuePopoverAnchorElem(event.currentTarget);
   };
@@ -352,15 +404,6 @@ function MetricsFetchControls(props: Props) {
 
   const isTimePopoverOpen = Boolean(timePopoverAnchorElem);
   const isQueuePopoverOpen = Boolean(queuePopoverAnchorElem);
-
-  React.useEffect(() => {
-    if (state.endTimeOption === "real_time") {
-      const id = setInterval(() => {
-        props.onEndTimeChange(currentUnixtime(), /*isEndTimeFixed=*/ false);
-      }, props.pollInterval * 1000);
-      return () => clearInterval(id);
-    }
-  });
 
   const shiftBy = (deltaSec: number) => {
     return () => {
@@ -401,7 +444,7 @@ function MetricsFetchControls(props: Props) {
           onClick={handleOpenTimePopover}
           size="small"
           classes={{
-            label: classes.buttonLabel,
+            root: classes.buttonLabel,
           }}
         >
           {state.endTimeOption === "real_time" ? "Realtime" : "Historical"}:{" "}
@@ -669,7 +712,7 @@ interface RadioInputProps {
 }
 
 function RadioInput(props: RadioInputProps) {
-  const classes = useStyles();
+  const { classes } = useStyles();
   return (
     <FormControlLabel
       classes={{ label: classes.formControlLabel }}
@@ -689,48 +732,42 @@ interface ShiftButtonProps extends ButtonProps {
   dense?: boolean;
 }
 
-const useShiftButtonStyles = makeStyles((theme: Theme) => ({
+const useShiftButtonStyles = makeStyles<ShiftButtonProps>()((theme, props) => ({
   root: {
     minWidth: 40,
-    fontWeight: (props: ShiftButtonProps) => (props.dense ? 400 : 500),
+    fontWeight: props.dense ? 400 : 500,
   },
   label: { fontSize: 12, textTransform: "none" },
   iconRoot: {
-    marginRight: (props: ShiftButtonProps) =>
-      props.direction === "left" ? (props.dense ? -8 : -4) : 0,
-    marginLeft: (props: ShiftButtonProps) =>
-      props.direction === "right" ? (props.dense ? -8 : -4) : 0,
-    color: (props: ShiftButtonProps) =>
-      props.color
-        ? props.color
-        : theme.palette.grey[isDarkTheme(theme) ? 200 : 700],
+    marginRight: props.direction === "left" ? (props.dense ? -8 : -4) : 0,
+    marginLeft: props.direction === "right" ? (props.dense ? -8 : -4) : 0,
+    color: props.color
+      ? props.color
+      : theme.palette.grey[isDarkTheme(theme) ? 200 : 700],
   },
 }));
 
-function ShiftButton(props: ShiftButtonProps) {
-  const classes = useShiftButtonStyles(props);
+function ShiftButton(inputProps: ShiftButtonProps) {
+  const props = { dense: false, ...inputProps };
+  const { classes } = useShiftButtonStyles(props);
+  const { text, direction, dense, ...buttonProps } = props;
   return (
     <Button
-      {...props}
+      {...buttonProps}
       classes={{
-        root: classes.root,
-        label: classes.label,
+        root: `${classes.root} ${classes.label}`,
       }}
       size="small"
     >
-      {props.direction === "left" && (
+      {direction === "left" && (
         <ArrowLeftIcon classes={{ root: classes.iconRoot }} />
       )}
-      {props.text}
-      {props.direction === "right" && (
+      {text}
+      {direction === "right" && (
         <ArrowRightIcon classes={{ root: classes.iconRoot }} />
       )}
     </Button>
   );
 }
 
-ShiftButton.defaultProps = {
-  dense: false,
-};
-
-export default connect(mapStateToProps)(MetricsFetchControls);
+export default MetricsFetchControls;

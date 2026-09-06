@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f766e" />
+    <meta
+      name="description"
+      content="Monitor queues, inspect tasks, and keep your background work running."
+    />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <title>Asynqmon · Queue monitoring</title>
+    <script>
+      window.FLAG_ROOT_PATH = "__ROOT_PATH__";
+      window.FLAG_PROMETHEUS_CONFIGURED = "__PROMETHEUS_CONFIGURED__";
+      window.FLAG_READ_ONLY = "__READ_ONLY__";
+    </script>
+  </head>
+  <body>
+    <noscript>Enable JavaScript to use Asynqmon.</noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
+</html>

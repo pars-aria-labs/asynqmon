@@ -1,13 +1,15 @@
+import PageHeader from "../components/common/PageHeader";
 import React from "react";
 import { connect, ConnectedProps } from "react-redux";
-import Container from "@material-ui/core/Container";
-import { makeStyles } from "@material-ui/core/styles";
-import Grid from "@material-ui/core/Grid";
-import Typography from "@material-ui/core/Typography";
-import Card from "@material-ui/core/Card";
-import CardContent from "@material-ui/core/CardContent";
-import Alert from "@material-ui/lab/Alert";
-import AlertTitle from "@material-ui/lab/AlertTitle";
+import Container from "@mui/material/Container";
+import { makeStyles } from "tss-react/mui";
+
+import Grid from "@mui/material/Grid";
+import Typography from "@mui/material/Typography";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Alert from "@mui/material/Alert";
+import AlertTitle from "@mui/material/AlertTitle";
 import SyntaxHighlighter from "../components/SyntaxHighlighter";
 import { getRedisInfoAsync } from "../actions/redisInfoActions";
 import { usePolling } from "../hooks";
@@ -15,9 +17,9 @@ import { AppState } from "../store";
 import { timeAgoUnix } from "../utils";
 import { RedisInfo } from "../api";
 import QueueLocationTable from "../components/QueueLocationTable";
-import Link from "@material-ui/core/Link";
+import Link from "@mui/material/Link";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   container: {
     paddingTop: theme.spacing(4),
     paddingBottom: theme.spacing(4),
@@ -43,7 +45,7 @@ const connector = connect(mapStateToProps, { getRedisInfoAsync });
 type Props = ConnectedProps<typeof connector>;
 
 function RedisInfoView(props: Props) {
-  const classes = useStyles();
+  const { classes } = useStyles();
   const {
     pollInterval,
     getRedisInfoAsync,
@@ -65,10 +67,14 @@ function RedisInfoView(props: Props) {
 
   return (
     <Container maxWidth="lg" className={classes.container}>
+      <PageHeader
+        title="Redis"
+        description="Connection details and Redis server information."
+      />
       <Grid container spacing={3}>
         {props.error === "" ? (
           <>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Typography variant="h5" color="textPrimary">
                 {redisClusterEnabled ? "Redis Cluster Info" : "Redis Info"}
               </Typography>
@@ -79,7 +85,7 @@ function RedisInfoView(props: Props) {
               )}
             </Grid>
             {queueLocations && queueLocations.length > 0 && (
-              <Grid item xs={12}>
+              <Grid size={{ xs: 12 }}>
                 <Typography variant="h6" color="textSecondary">
                   Queue Location in Cluster
                 </Typography>
@@ -88,7 +94,7 @@ function RedisInfoView(props: Props) {
             )}
             {redisClusterNodesRaw && (
               <>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <Typography variant="h6" color="textSecondary">
                     <Link
                       href="https://redis.io/commands/cluster-nodes"
@@ -109,7 +115,7 @@ function RedisInfoView(props: Props) {
             )}
             {redisInfoRaw && (
               <>
-                <Grid item xs={6}>
+                <Grid size={{ xs: 6 }}>
                   <Typography variant="h6" color="textSecondary">
                     {redisClusterEnabled ? (
                       <Link
@@ -133,7 +139,7 @@ function RedisInfoView(props: Props) {
             )}
           </>
         ) : (
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Alert severity="error">
               <AlertTitle>Error</AlertTitle>
               Could not retrieve redis live data —{" "}
@@ -150,78 +156,78 @@ function RedisMetricCards(props: { redisInfo: RedisInfo }) {
   const { redisInfo } = props;
   return (
     <>
-      <Grid item xs={12}>
+      <Grid size={{ xs: 12 }}>
         <Typography variant="h6" color="textSecondary">
           Server
         </Typography>
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{ xs: 3 }}>
         <MetricCard title="Version" content={redisInfo.redis_version} />
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{ xs: 3 }}>
         <MetricCard
           title="Uptime"
           content={`${redisInfo.uptime_in_days} days`}
         />
       </Grid>
-      <Grid item xs={6} />
-      <Grid item xs={12}>
+      <Grid size={{ xs: 6 }} />
+      <Grid size={{ xs: 12 }}>
         <Typography variant="h6" color="textSecondary">
           Memory
         </Typography>
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{ xs: 3 }}>
         <MetricCard title="Used Memory" content={redisInfo.used_memory_human} />
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{ xs: 3 }}>
         <MetricCard
           title="Peak Memory Used"
           content={redisInfo.used_memory_peak_human}
         />
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{ xs: 3 }}>
         <MetricCard
           title="Memory Fragmentation Ratio"
           content={redisInfo.mem_fragmentation_ratio}
         />
       </Grid>
-      <Grid item xs={3} />
-      <Grid item xs={12}>
+      <Grid size={{ xs: 3 }} />
+      <Grid size={{ xs: 12 }}>
         <Typography variant="h6" color="textSecondary">
           Connections
         </Typography>
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{ xs: 3 }}>
         <MetricCard
           title="Connected Clients"
           content={redisInfo.connected_clients}
         />
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{ xs: 3 }}>
         <MetricCard
           title="Connected Replicas"
           content={redisInfo.connected_slaves}
         />
       </Grid>
-      <Grid item xs={6} />
-      <Grid item xs={12}>
+      <Grid size={{ xs: 6 }} />
+      <Grid size={{ xs: 12 }}>
         <Typography variant="h6" color="textSecondary">
           Persistence
         </Typography>
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{ xs: 3 }}>
         <MetricCard
           title="Last Save to Disk"
           content={timeAgoUnix(parseInt(redisInfo.rdb_last_save_time))}
         />
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{ xs: 3 }}>
         <MetricCard
           title="Number of Changes Since Last Dump"
           content={redisInfo.rdb_changes_since_last_save}
         />
       </Grid>
-      <Grid item xs={6} />
+      <Grid size={{ xs: 6 }} />
     </>
   );
 }

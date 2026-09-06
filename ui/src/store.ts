@@ -11,7 +11,7 @@ import redisInfoReducer from "./reducers/redisInfoReducer";
 import metricsReducer from "./reducers/metricsReducer";
 import { loadState } from "./localStorage";
 
-const rootReducer = combineReducers({
+export const rootReducer = combineReducers({
   settings: settingsReducer,
   queues: queuesReducer,
   tasks: tasksReducer,

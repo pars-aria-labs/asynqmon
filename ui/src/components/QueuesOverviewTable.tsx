@@ -1,20 +1,22 @@
+import { useURLFilters } from "../hooks/useURLFilters";
+import Chip from "@mui/material/Chip";
 import React, { useState } from "react";
 import clsx from "clsx";
 import { Link } from "react-router-dom";
-import { makeStyles } from "@material-ui/core/styles";
-import Table from "@material-ui/core/Table";
-import TableBody from "@material-ui/core/TableBody";
-import TableCell from "@material-ui/core/TableCell";
-import TableContainer from "@material-ui/core/TableContainer";
-import TableHead from "@material-ui/core/TableHead";
-import TableRow from "@material-ui/core/TableRow";
-import TableSortLabel from "@material-ui/core/TableSortLabel";
-import IconButton from "@material-ui/core/IconButton";
-import Tooltip from "@material-ui/core/Tooltip";
-import PauseCircleFilledIcon from "@material-ui/icons/PauseCircleFilled";
-import PlayCircleFilledIcon from "@material-ui/icons/PlayCircleFilled";
-import DeleteIcon from "@material-ui/icons/Delete";
-import MoreHorizIcon from "@material-ui/icons/MoreHoriz";
+import { makeStyles } from "tss-react/mui";
+
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import TableSortLabel from "@mui/material/TableSortLabel";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import PauseCircleFilledIcon from "@mui/icons-material/PauseCircleFilled";
+import PlayCircleFilledIcon from "@mui/icons-material/PlayCircleFilled";
+import DeleteIcon from "@mui/icons-material/Delete";
 import DeleteQueueConfirmationDialog from "./DeleteQueueConfirmationDialog";
 import { Queue } from "../api";
 import { queueDetailsPath } from "../paths";
@@ -22,7 +24,7 @@ import { SortDirection, SortableTableColumn } from "../types/table";
 import prettyBytes from "pretty-bytes";
 import { percentage } from "../utils";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles()((theme) => ({
   table: {
     minWidth: 650,
   },
@@ -99,7 +101,7 @@ const colConfigs: SortableTableColumn<SortBy>[] = [
 // It returns a new array and leave the original array untouched.
 function sortQueues(
   queues: QueueWithMetadata[],
-  cmpFn: (first: QueueWithMetadata, second: QueueWithMetadata) => number
+  cmpFn: (first: QueueWithMetadata, second: QueueWithMetadata) => number,
 ): QueueWithMetadata[] {
   let copy = [...queues];
   copy.sort(cmpFn);
@@ -107,21 +109,22 @@ function sortQueues(
 }
 
 export default function QueuesOverviewTable(props: Props) {
-  const classes = useStyles();
-  const [sortBy, setSortBy] = useState<SortBy>(SortBy.Queue);
-  const [sortDir, setSortDir] = useState<SortDirection>(SortDirection.Asc);
+  const { classes } = useStyles();
+  const { filters, setFilters } = useURLFilters();
+  const sortBy = colConfigs.find(c => c.key === filters.get("sort") && c.sortBy !== SortBy.None)?.sortBy ?? SortBy.Queue;
+  const sortDir = filters.get("direction") === "desc" ? SortDirection.Desc : SortDirection.Asc;
   const [queueToDelete, setQueueToDelete] = useState<QueueWithMetadata | null>(
-    null
+    null,
   );
   const createSortClickHandler = (sortKey: SortBy) => (e: React.MouseEvent) => {
     if (sortKey === sortBy) {
       // Toggle sort direction.
       const nextSortDir =
         sortDir === SortDirection.Asc ? SortDirection.Desc : SortDirection.Asc;
-      setSortDir(nextSortDir);
+      setFilters({ direction: nextSortDir });
     } else {
       // Change the sort key.
-      setSortBy(sortKey);
+      setFilters({ sort: colConfigs.find(c => c.sortBy === sortKey)!.key });
     }
   };
 
@@ -176,6 +179,10 @@ export default function QueuesOverviewTable(props: Props) {
   const handleDialogClose = () => {
     setQueueToDelete(null);
   };
+  const currentQueueToDelete = queueToDelete
+    ? props.queues.find((queue) => queue.queue === queueToDelete.queue) ??
+      queueToDelete
+    : null;
 
   return (
     <React.Fragment>
@@ -224,13 +231,14 @@ export default function QueuesOverviewTable(props: Props) {
       </TableContainer>
       <DeleteQueueConfirmationDialog
         onClose={handleDialogClose}
-        queue={queueToDelete}
+        queue={currentQueueToDelete}
+        onDelete={props.onDeleteClick}
       />
     </React.Fragment>
   );
 }
 
-const useRowStyles = makeStyles((theme) => ({
+const useRowStyles = makeStyles()((theme) => ({
   row: {
     "&:last-child td": {
       borderBottomWidth: 0,
@@ -276,9 +284,8 @@ interface RowProps {
 }
 
 function Row(props: RowProps) {
-  const classes = useRowStyles();
+  const { classes } = useRowStyles();
   const { queue: q } = props;
-  const [showIcons, setShowIcons] = useState<boolean>(false);
   return (
     <TableRow key={q.queue} className={classes.row}>
       <TableCell
@@ -291,11 +298,12 @@ function Row(props: RowProps) {
         </Link>
       </TableCell>
       <TableCell>
-        {q.paused ? (
-          <span className={classes.textRed}>paused</span>
-        ) : (
-          <span className={classes.textGreen}>run</span>
-        )}
+        <Chip
+          size="small"
+          label={q.paused ? "Paused" : "Running"}
+          color={q.paused ? "warning" : "success"}
+          variant="outlined"
+        />
       </TableCell>
       <TableCell align="right">{q.size}</TableCell>
       <TableCell align="right">{prettyBytes(q.memory_usage_bytes)}</TableCell>
@@ -304,48 +312,45 @@ function Row(props: RowProps) {
       <TableCell align="right">{q.failed}</TableCell>
       <TableCell align="right">{percentage(q.failed, q.processed)}</TableCell>
       {!window.READ_ONLY && (
-        <TableCell
-          align="center"
-          onMouseEnter={() => setShowIcons(true)}
-          onMouseLeave={() => setShowIcons(false)}
-        >
+        <TableCell align="center">
           <div className={classes.actionIconsContainer}>
-            {showIcons ? (
-              <React.Fragment>
-                {q.paused ? (
-                  <Tooltip title="Resume">
-                    <IconButton
-                      color="secondary"
-                      onClick={props.onResumeClick}
-                      disabled={q.requestPending}
-                      size="small"
-                    >
-                      <PlayCircleFilledIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                ) : (
-                  <Tooltip title="Pause">
-                    <IconButton
-                      color="primary"
-                      onClick={props.onPauseClick}
-                      disabled={q.requestPending}
-                      size="small"
-                    >
-                      <PauseCircleFilledIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                )}
-                <Tooltip title="Delete">
-                  <IconButton onClick={props.onDeleteClick} size="small">
-                    <DeleteIcon fontSize="small" />
+            <React.Fragment>
+              {q.paused ? (
+                <Tooltip title="Resume">
+                  <IconButton
+                    color="secondary"
+                    aria-label={`Resume ${q.queue}`}
+                    onClick={props.onResumeClick}
+                    disabled={q.requestPending}
+                    size="small"
+                  >
+                    <PlayCircleFilledIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
-              </React.Fragment>
-            ) : (
-              <IconButton size="small">
-                <MoreHorizIcon fontSize="small" />
-              </IconButton>
-            )}
+              ) : (
+                <Tooltip title="Pause">
+                  <IconButton
+                    color="primary"
+                    aria-label={`Pause ${q.queue}`}
+                    onClick={props.onPauseClick}
+                    disabled={q.requestPending}
+                    size="small"
+                  >
+                    <PauseCircleFilledIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+              <Tooltip title="Delete">
+                <IconButton
+                  aria-label={`Delete ${q.queue}`}
+                  onClick={props.onDeleteClick}
+                  disabled={q.requestPending}
+                  size="small"
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </React.Fragment>
           </div>
         </TableCell>
       )}

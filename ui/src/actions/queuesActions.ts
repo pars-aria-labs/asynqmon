@@ -99,16 +99,18 @@ export type QueuesActionTypes =
   | ResumeQueueSuccessAction
   | ResumeQueueErrorAction;
 
-export function listQueuesAsync() {
+export function listQueuesAsync(signal?: AbortSignal) {
   return async (dispatch: Dispatch<QueuesActionTypes>) => {
     dispatch({ type: LIST_QUEUES_BEGIN });
     try {
-      const response = await listQueues();
+      const response = await listQueues(signal);
+      if (signal?.aborted) return;
       dispatch({
         type: LIST_QUEUES_SUCCESS,
         payload: response,
       });
     } catch (error) {
+      if (signal?.aborted) return;
       console.error(`listQueuesAsync: ${toErrorStringWithHttpStatus(error)}`);
       dispatch({
         type: LIST_QUEUES_ERROR,
