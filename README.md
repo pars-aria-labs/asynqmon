@@ -121,7 +121,8 @@ tag.
 
 ### Build a container locally
 
-To build and run a local image without contacting a registry:
+To build and run a local image without publishing it to a registry (Docker may
+still pull the declared base images):
 
 ```bash
 docker build --tag asynqmon:local .
@@ -248,6 +249,22 @@ scrape_configs:
     static_configs:
       - targets: ["asynqmon:8080"]
 ```
+
+If Asynqmon basic authentication is enabled, `/metrics` is protected too. Give
+Prometheus the same credentials in that scrape job:
+
+```yaml
+scrape_configs:
+  - job_name: asynqmon
+    basic_auth:
+      username: "metrics-reader"
+      password: "replace-with-a-secret"
+    static_configs:
+      - targets: ["asynqmon:8080"]
+```
+
+Prefer loading the password from your deployment's secret mechanism instead of
+committing a real credential to `prometheus.yml`.
 
 After Prometheus has collected samples, give its base URL to Asynqmon to enable
 the metrics view:
