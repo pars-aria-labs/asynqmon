@@ -113,7 +113,10 @@ docker pull ghcr.io/pars-aria-labs/asynqmon:VERSION
 
 No image is published automatically when code is pushed. The container workflow
 is manual, performs a build-only run by default, and requires its `publish`
-switch to send an image to `ghcr.io/pars-aria-labs/asynqmon`.
+switch to send an image to `ghcr.io/pars-aria-labs/asynqmon`. To publish a
+semantic version, create the corresponding Git tag, select that tag in the
+workflow's **Use workflow from** control, and enable `publish`. Dispatching the
+workflow from `main` produces only an immutable `sha-*` image tag.
 
 ### Build a container locally
 
@@ -140,10 +143,14 @@ To use the defaults, start the process and open
 docker run --rm \
     --name asynqmon \
     -p 8080:8080 \
-    asynqmon:local
+    asynqmon:local --redis-addr=host.docker.internal:6379
 ```
 
 By default, Asynqmon web server listens on port `8080` and connects to a Redis server running on `127.0.0.1:6379`.
+Inside a container, `127.0.0.1` refers to that container, so pass the reachable
+Redis address explicitly. On Linux, add
+`--add-host=host.docker.internal:host-gateway` when the Docker engine does not
+provide that hostname automatically.
 
 To see all available flags, run:
 
@@ -177,6 +184,8 @@ in one value. Alternatively, use `--redis-addr`, `--redis-db`, and
 | `--read-only`(bool)               | `READ_ONLY`               | use web UI in read-only mode                                                                                                 | false            |
 | `--basic-auth-username`(string)   | `BASIC_AUTH_USERNAME`     | username for HTTP basic authentication                                                                                       | ""               |
 | `--basic-auth-password`(string)   | `BASIC_AUTH_PASSWORD`     | password for HTTP basic authentication                                                                                       | ""               |
+| `--max-payload-length`(int)       | `MAX_PAYLOAD_LENGTH`      | maximum number of UTF-8 characters displayed from a task payload                                                             | 200              |
+| `--max-result-length`(int)        | `MAX_RESULT_LENGTH`       | maximum number of UTF-8 characters displayed from a task result                                                              | 200              |
 
 Basic authentication is enabled only when both `--basic-auth-username` and `--basic-auth-password` are set, or both corresponding environment variables are set.
 
@@ -191,6 +200,12 @@ $ ./asynqmon --redis-url=redis://:mypassword@localhost:6380/2
 
 $ ./asynqmon --redis-addr=localhost:6380 --redis-db=2 --redis-password=mypassword
 ```
+
+The Redis prefix must exactly match the value used by producers, workers, and
+other administration tools. If a prefix contains Redis hash-tag braces, its
+first `{...}` pair must not be empty; for example, `tenant{billing}` is valid,
+while `tenant{}` is rejected during startup. This prevents multi-key operations
+from failing later with Redis Cluster `CROSSSLOT` errors.
 
 To connect to **redis-sentinels**, use `--redis-url`.
 
@@ -219,7 +234,7 @@ The two Prometheus options solve different parts of the integration:
 First, start Asynqmon with the exporter enabled:
 
 ```bash
-./asynqmon --redis-addr=deps-redis:6379 --enable-metrics-exporter
+./asynqmon --redis-addr=127.0.0.1:6379 --enable-metrics-exporter
 ```
 
 Then configure Prometheus to scrape that Asynqmon process. In a container
@@ -238,9 +253,9 @@ the metrics view:
 
 ```bash
 ./asynqmon \
-    --redis-addr=deps-redis:6379 \
+    --redis-addr=127.0.0.1:6379 \
     --enable-metrics-exporter \
-    --prometheus-addr=http://deps-prometheus:9090
+    --prometheus-addr=http://127.0.0.1:9090
 ```
 
 <img width="1532" alt="Screen Shot 2021-12-19 at 4 37 19 PM" src="https://user-images.githubusercontent.com/10953044/146696852-25916465-07f0-4ed5-af31-18be02390bcb.png">
@@ -253,12 +268,6 @@ the metrics view:
 
 # with prometheus integration enabled
 ./asynqmon --enable-metrics-exporter --prometheus-addr=http://localhost:9090
-
-# example for the provided container network endpoints
-./asynqmon \
-    --redis-addr=deps-redis:6379 \
-    --enable-metrics-exporter \
-    --prometheus-addr=http://deps-prometheus:9090
 
 # with a locally built Docker image (connect to Redis on the host)
 docker run --rm \
