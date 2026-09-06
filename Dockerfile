@@ -12,8 +12,10 @@ WORKDIR /static
 # compatibility flag is scoped to the disposable frontend build stage.
 ENV NODE_OPTIONS=--openssl-legacy-provider
 
-# Install the same Yarn major version used by the checked-in lockfile.
-RUN npm install --global yarn@1.22.22
+# The official Node image may already provide Yarn shims. Replace them
+# deterministically, then verify the exact Yarn Classic version used here.
+RUN npm install --global --force yarn@1.22.22 \
+    && test "$(yarn --version)" = "1.22.22"
 
 # Cache dependency installation separately from application sources.
 COPY ui/package.json ui/yarn.lock ./
