@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/hibiken/asynq"
+	"github.com/pars-aria-labs/asynq"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -43,11 +43,10 @@ type Options struct {
 
 	// Set ReadOnly to true to restrict user to view-only mode.
 	ReadOnly bool
-	
+
 	BasicAuthUsername string
 
 	BasicAuthPassword string
-
 }
 
 // HTTPHandler is a http.Handler for asynqmon application.
@@ -106,7 +105,7 @@ func (h *HTTPHandler) RootPath() string {
 var staticContents embed.FS
 
 func muxRouter(opts Options, rc redis.UniversalClient, inspector *asynq.Inspector) *mux.Router {
-		router := mux.NewRouter().PathPrefix(opts.RootPath).Subrouter()
+	router := mux.NewRouter().PathPrefix(opts.RootPath).Subrouter()
 
 	// Enable Basic Auth only when both username and password are provided.
 	if opts.BasicAuthUsername != "" && opts.BasicAuthPassword != "" {
@@ -129,7 +128,6 @@ func muxRouter(opts Options, rc redis.UniversalClient, inspector *asynq.Inspecto
 	}
 
 	api := router.PathPrefix("/api").Subrouter()
-
 
 	// Queue endpoints.
 	api.HandleFunc("/queues", newListQueuesHandlerFunc(inspector)).Methods("GET")
@@ -258,9 +256,9 @@ func basicAuthMiddleware(username, password string) mux.MiddlewareFunc {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			user, pass, ok := r.BasicAuth()
 
-			userMatch := subtle.ConstantTimeCompare([]byte(user),[]byte(username)) == 1
+			userMatch := subtle.ConstantTimeCompare([]byte(user), []byte(username)) == 1
 
-			passMatch := subtle.ConstantTimeCompare([]byte(pass),[]byte(password)) == 1
+			passMatch := subtle.ConstantTimeCompare([]byte(pass), []byte(password)) == 1
 
 			if !ok || !userMatch || !passMatch {
 				w.Header().Set("WWW-Authenticate", `Basic realm="Asynqmon"`)

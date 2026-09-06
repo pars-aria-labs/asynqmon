@@ -11,7 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/hibiken/asynq"
+	"github.com/pars-aria-labs/asynq"
 )
 
 // ****************************************************************************
@@ -36,7 +36,7 @@ func newListActiveTasksHandlerFunc(inspector *asynq.Inspector, pf PayloadFormatt
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		qinfo, err := inspector.GetQueueInfo(qname)
+		qinfo, err := getQueueInfo(r.Context(), inspector, qname)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -161,7 +161,7 @@ func newListPendingTasksHandlerFunc(inspector *asynq.Inspector, pf PayloadFormat
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		qinfo, err := inspector.GetQueueInfo(qname)
+		qinfo, err := getQueueInfo(r.Context(), inspector, qname)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -189,7 +189,7 @@ func newListScheduledTasksHandlerFunc(inspector *asynq.Inspector, pf PayloadForm
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		qinfo, err := inspector.GetQueueInfo(qname)
+		qinfo, err := getQueueInfo(r.Context(), inspector, qname)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -217,7 +217,7 @@ func newListRetryTasksHandlerFunc(inspector *asynq.Inspector, pf PayloadFormatte
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		qinfo, err := inspector.GetQueueInfo(qname)
+		qinfo, err := getQueueInfo(r.Context(), inspector, qname)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -245,7 +245,7 @@ func newListArchivedTasksHandlerFunc(inspector *asynq.Inspector, pf PayloadForma
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		qinfo, err := inspector.GetQueueInfo(qname)
+		qinfo, err := getQueueInfo(r.Context(), inspector, qname)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -272,7 +272,7 @@ func newListCompletedTasksHandlerFunc(inspector *asynq.Inspector, pf PayloadForm
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		qinfo, err := inspector.GetQueueInfo(qname)
+		qinfo, err := getQueueInfo(r.Context(), inspector, qname)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -301,7 +301,7 @@ func newListAggregatingTasksHandlerFunc(inspector *asynq.Inspector, pf PayloadFo
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		qinfo, err := inspector.GetQueueInfo(qname)
+		qinfo, err := getQueueInfo(r.Context(), inspector, qname)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -382,6 +382,9 @@ type deleteAllTasksResponse struct {
 
 func newDeleteAllPendingTasksHandlerFunc(inspector *asynq.Inspector) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if serveTaskBatch(w, r, inspector, "pending", "delete") {
+			return
+		}
 		qname := mux.Vars(r)["qname"]
 		n, err := inspector.DeleteAllPendingTasks(qname)
 		if err != nil {
@@ -394,6 +397,9 @@ func newDeleteAllPendingTasksHandlerFunc(inspector *asynq.Inspector) http.Handle
 
 func newDeleteAllAggregatingTasksHandlerFunc(inspector *asynq.Inspector) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if serveTaskBatch(w, r, inspector, "aggregating", "delete") {
+			return
+		}
 		vars := mux.Vars(r)
 		qname, gname := vars["qname"], vars["gname"]
 		n, err := inspector.DeleteAllAggregatingTasks(qname, gname)
@@ -407,6 +413,9 @@ func newDeleteAllAggregatingTasksHandlerFunc(inspector *asynq.Inspector) http.Ha
 
 func newDeleteAllScheduledTasksHandlerFunc(inspector *asynq.Inspector) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if serveTaskBatch(w, r, inspector, "scheduled", "delete") {
+			return
+		}
 		qname := mux.Vars(r)["qname"]
 		n, err := inspector.DeleteAllScheduledTasks(qname)
 		if err != nil {
@@ -419,6 +428,9 @@ func newDeleteAllScheduledTasksHandlerFunc(inspector *asynq.Inspector) http.Hand
 
 func newDeleteAllRetryTasksHandlerFunc(inspector *asynq.Inspector) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if serveTaskBatch(w, r, inspector, "retry", "delete") {
+			return
+		}
 		qname := mux.Vars(r)["qname"]
 		n, err := inspector.DeleteAllRetryTasks(qname)
 		if err != nil {
@@ -431,6 +443,9 @@ func newDeleteAllRetryTasksHandlerFunc(inspector *asynq.Inspector) http.HandlerF
 
 func newDeleteAllArchivedTasksHandlerFunc(inspector *asynq.Inspector) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if serveTaskBatch(w, r, inspector, "archived", "delete") {
+			return
+		}
 		qname := mux.Vars(r)["qname"]
 		n, err := inspector.DeleteAllArchivedTasks(qname)
 		if err != nil {
@@ -443,6 +458,9 @@ func newDeleteAllArchivedTasksHandlerFunc(inspector *asynq.Inspector) http.Handl
 
 func newDeleteAllCompletedTasksHandlerFunc(inspector *asynq.Inspector) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if serveTaskBatch(w, r, inspector, "completed", "delete") {
+			return
+		}
 		qname := mux.Vars(r)["qname"]
 		n, err := inspector.DeleteAllCompletedTasks(qname)
 		if err != nil {
@@ -460,6 +478,9 @@ type runAllTasksResponse struct {
 
 func newRunAllScheduledTasksHandlerFunc(inspector *asynq.Inspector) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if serveTaskBatch(w, r, inspector, "scheduled", "run") {
+			return
+		}
 		qname := mux.Vars(r)["qname"]
 		n, err := inspector.RunAllScheduledTasks(qname)
 		if err != nil {
@@ -472,6 +493,9 @@ func newRunAllScheduledTasksHandlerFunc(inspector *asynq.Inspector) http.Handler
 
 func newRunAllRetryTasksHandlerFunc(inspector *asynq.Inspector) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if serveTaskBatch(w, r, inspector, "retry", "run") {
+			return
+		}
 		qname := mux.Vars(r)["qname"]
 		n, err := inspector.RunAllRetryTasks(qname)
 		if err != nil {
@@ -484,6 +508,9 @@ func newRunAllRetryTasksHandlerFunc(inspector *asynq.Inspector) http.HandlerFunc
 
 func newRunAllArchivedTasksHandlerFunc(inspector *asynq.Inspector) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if serveTaskBatch(w, r, inspector, "archived", "run") {
+			return
+		}
 		qname := mux.Vars(r)["qname"]
 		n, err := inspector.RunAllArchivedTasks(qname)
 		if err != nil {
@@ -496,6 +523,9 @@ func newRunAllArchivedTasksHandlerFunc(inspector *asynq.Inspector) http.HandlerF
 
 func newRunAllAggregatingTasksHandlerFunc(inspector *asynq.Inspector) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if serveTaskBatch(w, r, inspector, "aggregating", "run") {
+			return
+		}
 		vars := mux.Vars(r)
 		qname, gname := vars["qname"], vars["gname"]
 		n, err := inspector.RunAllAggregatingTasks(qname, gname)
@@ -520,6 +550,9 @@ func writeResponseJSON(w http.ResponseWriter, resp interface{}) {
 
 func newArchiveAllPendingTasksHandlerFunc(inspector *asynq.Inspector) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if serveTaskBatch(w, r, inspector, "pending", "archive") {
+			return
+		}
 		qname := mux.Vars(r)["qname"]
 		n, err := inspector.ArchiveAllPendingTasks(qname)
 		if err != nil {
@@ -532,6 +565,9 @@ func newArchiveAllPendingTasksHandlerFunc(inspector *asynq.Inspector) http.Handl
 
 func newArchiveAllAggregatingTasksHandlerFunc(inspector *asynq.Inspector) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if serveTaskBatch(w, r, inspector, "aggregating", "archive") {
+			return
+		}
 		vars := mux.Vars(r)
 		qname, gname := vars["qname"], vars["gname"]
 		n, err := inspector.ArchiveAllAggregatingTasks(qname, gname)
@@ -545,6 +581,9 @@ func newArchiveAllAggregatingTasksHandlerFunc(inspector *asynq.Inspector) http.H
 
 func newArchiveAllScheduledTasksHandlerFunc(inspector *asynq.Inspector) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if serveTaskBatch(w, r, inspector, "scheduled", "archive") {
+			return
+		}
 		qname := mux.Vars(r)["qname"]
 		n, err := inspector.ArchiveAllScheduledTasks(qname)
 		if err != nil {
@@ -557,6 +596,9 @@ func newArchiveAllScheduledTasksHandlerFunc(inspector *asynq.Inspector) http.Han
 
 func newArchiveAllRetryTasksHandlerFunc(inspector *asynq.Inspector) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if serveTaskBatch(w, r, inspector, "retry", "archive") {
+			return
+		}
 		qname := mux.Vars(r)["qname"]
 		n, err := inspector.ArchiveAllRetryTasks(qname)
 		if err != nil {

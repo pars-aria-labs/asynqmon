@@ -39,6 +39,7 @@ import ServersView from "./views/ServersView";
 import RedisInfoView from "./views/RedisInfoView";
 import MetricsView from "./views/MetricsView";
 import PageNotFoundView from "./views/PageNotFoundView";
+import BulkActionProgress from "./components/BulkActionProgress";
 import { ReactComponent as Logo } from "./images/logo-color.svg";
 import { ReactComponent as LogoDarkTheme } from "./images/logo-white.svg";
 
@@ -159,6 +160,7 @@ function App(props: ConnectedProps<typeof connector>) {
     <ThemeProvider theme={theme}>
       <Router>
         <div className={classes.root}>
+          <BulkActionProgress />
           <AppBar
             position="absolute"
             className={classes.appBar}
@@ -260,7 +262,7 @@ function App(props: ConnectedProps<typeof connector>) {
                     button
                     component="a"
                     className={classes.listItem}
-                    href="https://github.com/hibiken/asynqmon/issues"
+                    href="https://github.com/pars-aria-labs/asynqmon/issues"
                     target="_blank"
                   >
                     <ListItemIcon>

@@ -1,5 +1,6 @@
 import axios from "axios";
 import queryString from "query-string";
+import { performBulkAction } from "./bulkActions";
 
 // In production build, API server is on listening on the same port as
 // the static file server.
@@ -583,10 +584,10 @@ export async function batchArchivePendingTasks(
 }
 
 export async function archiveAllPendingTasks(qname: string): Promise<void> {
-  await axios({
-    method: "post",
-    url: `${getBaseUrl()}/queues/${qname}/pending_tasks:archive_all`,
-  });
+  await performBulkAction(
+    "archive",
+    `${getBaseUrl()}/queues/${qname}/pending_tasks:archive_all`
+  );
 }
 
 export async function deletePendingTask(
@@ -616,11 +617,11 @@ export async function batchDeletePendingTasks(
 export async function deleteAllPendingTasks(
   qname: string
 ): Promise<DeleteAllTasksResponse> {
-  const resp = await axios({
-    method: "delete",
-    url: `${getBaseUrl()}/queues/${qname}/pending_tasks:delete_all`,
-  });
-  return resp.data;
+  const deleted = await performBulkAction(
+    "delete",
+    `${getBaseUrl()}/queues/${qname}/pending_tasks:delete_all`
+  );
+  return { deleted };
 }
 
 export async function deleteAggregatingTask(
@@ -653,11 +654,11 @@ export async function deleteAllAggregatingTasks(
   qname: string,
   gname: string
 ): Promise<DeleteAllTasksResponse> {
-  const resp = await axios({
-    method: "delete",
-    url: `${getBaseUrl()}/queues/${qname}/groups/${gname}/aggregating_tasks:delete_all`,
-  });
-  return resp.data;
+  const deleted = await performBulkAction(
+    "delete",
+    `${getBaseUrl()}/queues/${qname}/groups/${gname}/aggregating_tasks:delete_all`
+  );
+  return { deleted };
 }
 
 export async function runAggregatingTask(
@@ -690,11 +691,11 @@ export async function runAllAggregatingTasks(
   qname: string,
   gname: string
 ): Promise<RunAllTasksResponse> {
-  const resp = await axios({
-    method: "post",
-    url: `${getBaseUrl()}/queues/${qname}/groups/${gname}/aggregating_tasks:run_all`,
-  });
-  return resp.data;
+  const scheduled = await performBulkAction(
+    "run",
+    `${getBaseUrl()}/queues/${qname}/groups/${gname}/aggregating_tasks:run_all`
+  );
+  return { scheduled };
 }
 
 export async function archiveAggregatingTask(
@@ -727,11 +728,11 @@ export async function archiveAllAggregatingTasks(
   qname: string,
   gname: string
 ): Promise<ArchiveAllTasksResponse> {
-  const resp = await axios({
-    method: "post",
-    url: `${getBaseUrl()}/queues/${qname}/groups/${gname}/aggregating_tasks:archive_all`,
-  });
-  return resp.data;
+  const archived = await performBulkAction(
+    "archive",
+    `${getBaseUrl()}/queues/${qname}/groups/${gname}/aggregating_tasks:archive_all`
+  );
+  return { archived };
 }
 
 export async function runScheduledTask(
@@ -781,11 +782,11 @@ export async function batchDeleteScheduledTasks(
 export async function deleteAllScheduledTasks(
   qname: string
 ): Promise<DeleteAllTasksResponse> {
-  const resp = await axios({
-    method: "delete",
-    url: `${getBaseUrl()}/queues/${qname}/scheduled_tasks:delete_all`,
-  });
-  return resp.data;
+  const deleted = await performBulkAction(
+    "delete",
+    `${getBaseUrl()}/queues/${qname}/scheduled_tasks:delete_all`
+  );
+  return { deleted };
 }
 
 export async function batchRunScheduledTasks(
@@ -803,10 +804,10 @@ export async function batchRunScheduledTasks(
 }
 
 export async function runAllScheduledTasks(qname: string): Promise<void> {
-  await axios({
-    method: "post",
-    url: `${getBaseUrl()}/queues/${qname}/scheduled_tasks:run_all`,
-  });
+  await performBulkAction(
+    "run",
+    `${getBaseUrl()}/queues/${qname}/scheduled_tasks:run_all`
+  );
 }
 
 export async function batchArchiveScheduledTasks(
@@ -824,10 +825,10 @@ export async function batchArchiveScheduledTasks(
 }
 
 export async function archiveAllScheduledTasks(qname: string): Promise<void> {
-  await axios({
-    method: "post",
-    url: `${getBaseUrl()}/queues/${qname}/scheduled_tasks:archive_all`,
-  });
+  await performBulkAction(
+    "archive",
+    `${getBaseUrl()}/queues/${qname}/scheduled_tasks:archive_all`
+  );
 }
 
 export async function runRetryTask(
@@ -877,11 +878,11 @@ export async function batchDeleteRetryTasks(
 export async function deleteAllRetryTasks(
   qname: string
 ): Promise<DeleteAllTasksResponse> {
-  const resp = await axios({
-    method: "delete",
-    url: `${getBaseUrl()}/queues/${qname}/retry_tasks:delete_all`,
-  });
-  return resp.data;
+  const deleted = await performBulkAction(
+    "delete",
+    `${getBaseUrl()}/queues/${qname}/retry_tasks:delete_all`
+  );
+  return { deleted };
 }
 
 export async function batchRunRetryTasks(
@@ -899,10 +900,10 @@ export async function batchRunRetryTasks(
 }
 
 export async function runAllRetryTasks(qname: string): Promise<void> {
-  await axios({
-    method: "post",
-    url: `${getBaseUrl()}/queues/${qname}/retry_tasks:run_all`,
-  });
+  await performBulkAction(
+    "run",
+    `${getBaseUrl()}/queues/${qname}/retry_tasks:run_all`
+  );
 }
 
 export async function batchArchiveRetryTasks(
@@ -920,10 +921,10 @@ export async function batchArchiveRetryTasks(
 }
 
 export async function archiveAllRetryTasks(qname: string): Promise<void> {
-  await axios({
-    method: "post",
-    url: `${getBaseUrl()}/queues/${qname}/retry_tasks:archive_all`,
-  });
+  await performBulkAction(
+    "archive",
+    `${getBaseUrl()}/queues/${qname}/retry_tasks:archive_all`
+  );
 }
 
 export async function runArchivedTask(
@@ -963,11 +964,11 @@ export async function batchDeleteArchivedTasks(
 export async function deleteAllArchivedTasks(
   qname: string
 ): Promise<DeleteAllTasksResponse> {
-  const resp = await axios({
-    method: "delete",
-    url: `${getBaseUrl()}/queues/${qname}/archived_tasks:delete_all`,
-  });
-  return resp.data;
+  const deleted = await performBulkAction(
+    "delete",
+    `${getBaseUrl()}/queues/${qname}/archived_tasks:delete_all`
+  );
+  return { deleted };
 }
 
 export async function batchRunArchivedTasks(
@@ -985,10 +986,10 @@ export async function batchRunArchivedTasks(
 }
 
 export async function runAllArchivedTasks(qname: string): Promise<void> {
-  await axios({
-    method: "post",
-    url: `${getBaseUrl()}/queues/${qname}/archived_tasks:run_all`,
-  });
+  await performBulkAction(
+    "run",
+    `${getBaseUrl()}/queues/${qname}/archived_tasks:run_all`
+  );
 }
 
 export async function deleteCompletedTask(
@@ -1018,11 +1019,11 @@ export async function batchDeleteCompletedTasks(
 export async function deleteAllCompletedTasks(
   qname: string
 ): Promise<DeleteAllTasksResponse> {
-  const resp = await axios({
-    method: "delete",
-    url: `${getBaseUrl()}/queues/${qname}/completed_tasks:delete_all`,
-  });
-  return resp.data;
+  const deleted = await performBulkAction(
+    "delete",
+    `${getBaseUrl()}/queues/${qname}/completed_tasks:delete_all`
+  );
+  return { deleted };
 }
 
 export async function listServers(): Promise<ListServersResponse> {
