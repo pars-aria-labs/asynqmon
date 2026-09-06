@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hibiken/asynqmon"
 	"github.com/pars-aria-labs/asynq"
 	"github.com/pars-aria-labs/asynq/x/metrics"
+	"github.com/pars-aria-labs/asynqmon"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"

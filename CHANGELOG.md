@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-06
+
+### Changed
+
+- Changed the Go module and library import path to `github.com/pars-aria-labs/asynqmon`. Version `v0.8.0` is the first release under this canonical path.
+
 ## [0.7.0] - 2022-04-11
 
-Version 0.7 added support for [Task Aggregation](https://github.com/hibiken/asynq/wiki/Task-aggregation) feature
+Version 0.7 added support for the Task Aggregation feature.
 
 ### Added
  

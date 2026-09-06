@@ -1,4 +1,4 @@
-module github.com/hibiken/asynqmon
+module github.com/pars-aria-labs/asynqmon
 
 go 1.25.0
 

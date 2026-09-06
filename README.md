@@ -11,23 +11,21 @@ Asynqmon is both a library that you can include in your web application, as well
 
 ## Source and fork provenance
 
-This repository is an independent continuation of the MIT-licensed
-[`hibiken/asynqmon`](https://github.com/hibiken/asynqmon) project. Its imported
-history baseline is commit
+This repository is an independent continuation of the original MIT-licensed
+Asynqmon project. Its imported history baseline is commit
 [`8bf6ad3618d90570102589ee2c8e2e891d07547f`](https://github.com/pars-aria-labs/asynqmon/commit/8bf6ad3618d90570102589ee2c8e2e891d07547f).
 Original copyright notices, the MIT license, and Git history are preserved.
 
 The changes maintained here include:
 
 - compatibility with `github.com/pars-aria-labs/asynq` and its `x` module;
+- a canonical Go module identity at `github.com/pars-aria-labs/asynqmon`;
 - bounded bulk delete, run, and archive operations, with visible UI progress;
 - safer release automation, a Go 1.25 toolchain, and an organization-owned GHCR target.
 
-This fork is not an official `hibiken/asynqmon` release. The Go module identity
-of Asynqmon itself intentionally remains `github.com/hibiken/asynqmon`; only its
-Asynq dependency has moved to `github.com/pars-aria-labs/asynq`. Therefore,
-library code should continue importing `github.com/hibiken/asynqmon` as shown
-below.
+This independently maintained fork is published under the Pars Aria Labs
+namespace. Applications should import both Asynq and Asynqmon from that
+namespace so builds consistently use the features documented here.
 
 ## Version compatibility
 
@@ -35,7 +33,7 @@ Choose an Asynqmon version that matches the Asynq version used by your workers:
 
 | Asynq version          | Web UI version       |
 | ---------------------- | -------------------- |
-| Pars Aria Labs 0.27.x  | this source checkout |
+| Pars Aria Labs 0.27.x  | 0.8.x                |
 | 0.23.x                 | 0.7.x                |
 | 0.22.x                 | 0.6.x                |
 | 0.20.x, 0.21.x         | 0.5.x                |
@@ -63,12 +61,9 @@ to apply to the same endpoints.
 
 ## Install the binary
 
-> **Artifact provenance matters:** binaries from
-> [`hibiken/asynqmon` releases](https://github.com/hibiken/asynqmon/releases)
-> and images named `hibiken/asynqmon` are upstream artifacts. They do **not**
-> contain the changes in this fork. Build this source checkout, or use an
-> artifact published by `pars-aria-labs`, when you need the features described
-> in this README.
+> **Artifact provenance matters:** use source, binaries, and container images
+> published by `pars-aria-labs` when you need the features described in this
+> README. Artifacts from other namespaces may represent a different codebase.
 
 ### Build and install from source
 
@@ -89,9 +84,7 @@ assets and only need to install the Go binary into `GOBIN`, Node.js and Yarn are
 not required:
 
 ```bash
-git clone https://github.com/pars-aria-labs/asynqmon.git
-cd asynqmon
-go install ./cmd/asynqmon
+go install github.com/pars-aria-labs/asynqmon/cmd/asynqmon@v0.8.0
 asynqmon --help
 ```
 
@@ -101,10 +94,11 @@ your shell's `PATH`.
 
 ### Release binaries and container images
 
-Fork-owned binaries will appear on the
-[`pars-aria-labs/asynqmon` releases page](https://github.com/pars-aria-labs/asynqmon/releases)
-after the first release is published. Likewise, after a maintainer explicitly
-publishes a container, pull a specific version from GHCR:
+The `v0.8.0` source is published under the canonical repository's
+[version tags](https://github.com/pars-aria-labs/asynqmon/tags). Binary assets
+appear on the [releases page](https://github.com/pars-aria-labs/asynqmon/releases)
+when a release bundle is published. After a maintainer explicitly publishes a
+container, pull a specific version from GHCR:
 
 ```bash
 # Replace VERSION with a tag shown on the package page.
@@ -315,25 +309,31 @@ Next, go to [localhost:8080](http://localhost:8080) and see Asynqmon dashboard:
 
 ## Import as a library
 
-Asynqmon can also be mounted inside an existing Go web application. Its legacy
-module identity is intentional, so the `asynqmon` import below remains under
-`github.com/hibiken` while the Asynq import uses `github.com/pars-aria-labs`.
-
-A plain `go get github.com/hibiken/asynqmon` resolves the upstream module, not
-this fork. Until this repository adopts and publishes a new module identity,
-clone it next to your application and add an explicit local replacement:
+Asynqmon can also be mounted inside an existing Go web application. Add the
+canonical module to your application, then import it from the Pars Aria Labs
+namespace:
 
 ```bash
-# Directory layout: ./my-app and ./asynqmon
-cd my-app
-go mod edit -replace=github.com/hibiken/asynqmon=../asynqmon
-# Add one of the integrations below to your source, then resolve dependencies.
-go mod tidy
+go get github.com/pars-aria-labs/asynqmon@v0.8.0
 ```
 
-The replacement makes the source choice visible in `go.mod` and keeps existing
-imports compatible. Remove or update it deliberately when a permanent module
-path for this fork is published.
+Version `v0.8.0` is the first release using this canonical module path. Keep the
+Asynq root and `x` dependencies on matching versions.
+
+### Migrating an existing library integration
+
+Replace the previous Asynqmon import with
+`github.com/pars-aria-labs/asynqmon`, remove any obsolete local `replace`
+directive that selected another checkout, and then reconcile the module graph:
+
+```bash
+go get github.com/pars-aria-labs/asynqmon@v0.8.0
+go mod tidy
+go test ./...
+```
+
+No handler API change is required solely for this module-path migration; the
+package name remains `asynqmon`.
 
 Example with [net/http](https://pkg.go.dev/net/http):
 
@@ -345,7 +345,7 @@ import (
 	"net/http"
 
 	"github.com/pars-aria-labs/asynq"
-	"github.com/hibiken/asynqmon"
+	"github.com/pars-aria-labs/asynqmon"
 )
 
 func main() {
@@ -373,7 +373,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/pars-aria-labs/asynq"
-	"github.com/hibiken/asynqmon"
+	"github.com/pars-aria-labs/asynqmon"
 )
 
 func main() {
@@ -405,7 +405,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/pars-aria-labs/asynq"
-	"github.com/hibiken/asynqmon"
+	"github.com/pars-aria-labs/asynqmon"
 )
 
 func main() {
@@ -426,4 +426,4 @@ func main() {
 
 ## License
 
-Copyright (c) 2019-present [Ken Hibino](https://github.com/hibiken) and [Contributors](https://github.com/hibiken/asynqmon/graphs/contributors). `Asynqmon` is free and open-source software licensed under the local [MIT License](LICENSE). Official logo was created by [Vic Shóstak](https://github.com/koddr) and distributed under [Creative Commons](https://creativecommons.org/publicdomain/zero/1.0/) license (CC0 1.0 Universal).
+Copyright (c) 2019-present Ken Hibino and Contributors. `Asynqmon` is free and open-source software licensed under the local [MIT License](LICENSE). Official logo was created by [Vic Shóstak](https://github.com/koddr) and distributed under [Creative Commons](https://creativecommons.org/publicdomain/zero/1.0/) license (CC0 1.0 Universal).
