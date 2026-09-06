@@ -46,6 +46,9 @@ Choose an Asynqmon version that matches the Asynq version used by your workers:
 | 0.18.x                 | 0.2.x, 0.3.x         |
 | 0.16.x, 0.17.x         | 0.1.x                |
 
+The current `main` branch pins both Pars Aria Labs modules to `v0.27.1`. Keep
+the root and `x` dependencies on the same release when updating a checkout.
+
 ### Bounded bulk operations
 
 When the Asynq dependency provides the batch Inspector APIs, bulk delete, run,

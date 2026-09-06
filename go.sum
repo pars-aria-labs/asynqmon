@@ -28,10 +28,10 @@ github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
-github.com/pars-aria-labs/asynq v0.27.0 h1:+fG02NT21Z1yFgIBBNHW4NJYvIoT6yIzyAlBiIOWmc4=
-github.com/pars-aria-labs/asynq v0.27.0/go.mod h1:zH13smIvSglLAvq3e3IHVjiLC+fCWyndOff8BaKoQlg=
-github.com/pars-aria-labs/asynq/x v0.27.0 h1:DIpsYtd5LIXZEDwsh0I73RiiKuhvicgmuV2pt48WIog=
-github.com/pars-aria-labs/asynq/x v0.27.0/go.mod h1:jXFnkpGi3wlB+lTtoOn5E3VIf8Eif6uquzETDjr8kv4=
+github.com/pars-aria-labs/asynq v0.27.1 h1:NXRwGIwLeLYnZxgA6ibOg58XJPbp66cTV57Wamq2vtg=
+github.com/pars-aria-labs/asynq v0.27.1/go.mod h1:zH13smIvSglLAvq3e3IHVjiLC+fCWyndOff8BaKoQlg=
+github.com/pars-aria-labs/asynq/x v0.27.1 h1:3iwLzwDbIRpdm0eYS5Ru9r03Z1DhI3w0jWWy1PyCGxM=
+github.com/pars-aria-labs/asynq/x v0.27.1/go.mod h1:7goXneEVuVh/wqKd1dIxT0rpRaGHRpgC5fpldxwQK/E=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/prometheus/client_golang v1.23.2 h1:Je96obch5RDVy3FDMndoUsjAhG5Edi49h0RJWRi/o0o=

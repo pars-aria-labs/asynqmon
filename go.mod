@@ -5,8 +5,8 @@ go 1.25.0
 require (
 	github.com/google/go-cmp v0.7.0
 	github.com/gorilla/mux v1.8.1
-	github.com/pars-aria-labs/asynq v0.27.0
-	github.com/pars-aria-labs/asynq/x v0.27.0
+	github.com/pars-aria-labs/asynq v0.27.1
+	github.com/pars-aria-labs/asynq/x v0.27.1
 	github.com/prometheus/client_golang v1.23.2
 	github.com/redis/go-redis/v9 v9.20.0
 	github.com/rs/cors v1.11.1
