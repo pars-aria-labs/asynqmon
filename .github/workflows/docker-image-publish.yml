@@ -1,6 +1,23 @@
 name: Publish Docker image
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "**.go"
+      - go.mod
+      - go.sum
+      - ui/**
+      - Dockerfile
+      - .github/workflows/docker-image-publish.yml
+  pull_request:
+    paths:
+      - "**.go"
+      - go.mod
+      - go.sum
+      - ui/**
+      - Dockerfile
+      - .github/workflows/docker-image-publish.yml
   workflow_dispatch:
     inputs:
       publish:
@@ -15,7 +32,7 @@ permissions:
 
 jobs:
   push_to_registry:
-    name: Build Docker image${{ inputs.publish && ' and publish it' || '' }}
+    name: Build Docker image${{ github.event_name == 'workflow_dispatch' && inputs.publish && ' and publish it' || '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -36,7 +53,7 @@ jobs:
             type=sha
 
       - name: Log in to GitHub Container Registry
-        if: ${{ inputs.publish }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -48,7 +65,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          push: ${{ inputs.publish }}
+          push: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 

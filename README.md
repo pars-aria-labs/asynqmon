@@ -111,12 +111,13 @@ publishes a container, pull a specific version from GHCR:
 docker pull ghcr.io/pars-aria-labs/asynqmon:VERSION
 ```
 
-No image is published automatically when code is pushed. The container workflow
-is manual, performs a build-only run by default, and requires its `publish`
-switch to send an image to `ghcr.io/pars-aria-labs/asynqmon`. To publish a
-semantic version, create the corresponding Git tag, select that tag in the
-workflow's **Use workflow from** control, and enable `publish`. Dispatching the
-workflow from `main` produces only an immutable `sha-*` image tag.
+No image is published automatically when code is pushed. Changes that affect
+the image are built in CI, but only a manual workflow run with its `publish`
+switch enabled can send an image to `ghcr.io/pars-aria-labs/asynqmon`. To
+publish a semantic version, create the corresponding Git tag, select that tag
+in the workflow's **Use workflow from** control, and enable `publish`.
+Dispatching the workflow from `main` produces only an immutable `sha-*` image
+tag.
 
 ### Build a container locally
 
