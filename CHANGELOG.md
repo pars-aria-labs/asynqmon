@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Full-handler authentication for library consumers, custom middleware
+  support, CSRF protection, and clickjacking defenses through CSP
+  `frame-ancestors` and `X-Frame-Options` headers.
+- Shareable URL filters, resilient request freshness, an expanded task detail
+  view, responsive navigation, and a guided Prometheus setup state.
+- Redis/worker/Prometheus Compose demo; Go, Vitest, Playwright, framework
+  adapter, security, and visual-regression coverage.
+- Multi-architecture container CI and release provenance, checksums, SBOM, and
+  GHCR publishing.
+
+### Changed
+
+- Module path is now `github.com/pars-aria-labs/asynqmon`.
+- Frontend migrated from CRA/React 16/Material UI 4 to
+  Vite/React 18/Material UI 7, with Recharts 3.
+- Prometheus proxy requests now validate configuration and responses, inherit
+  cancellation, enforce bounded ranges/query sizes, cap each upstream body at
+  4 MiB and their aggregate at 24 MiB, and escape queue matchers safely. Each
+  handler admits at most two concurrent metrics requests and responds to
+  excess load with `503` and `Retry-After`.
+- Runtime HTML now receives only a boolean Prometheus-configuration marker;
+  the configured upstream URL is kept on the server.
+- CLI help exits successfully without echoing sensitive environment-derived
+  defaults.
+- Existing standalone Basic Auth and read-only handling now cover their full
+  intended route scope and fail closed on partial configuration.
+- Release binaries now cover Linux, macOS, and Windows on amd64 and arm64.
+- Container publication now waits for successful binary publication. Release
+  names are normalized into OCI-compatible image tags with a valid leading
+  character and a maximum length of 128 characters.
+
+### Fixed
+
+- Manual Dashboard refreshes now supersede in-flight queue and queue-history
+  generations, preventing late responses from overwriting newer state. Queue
+  mutations also cancel an older poll and refresh authoritative state after
+  completion.
+
 ## [0.7.0] - 2022-04-11
 
 Version 0.7 added support for [Task Aggregation](https://github.com/hibiken/asynq/wiki/Task-aggregation) feature

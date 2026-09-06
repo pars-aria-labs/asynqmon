@@ -1,53 +1,92 @@
-# Working with the React UI
+# Asynqmon UI
 
-This file explains how to work with Asynqmon UI.
+React 18, TypeScript 5, Material UI 7, Recharts 3, and Vite power the
+frontend. The monitoring views share a Redux data layer and the server API.
+Styles use Emotion; older hook-based components use `tss-react` instead of
+JSS.
 
-## Introduction
+## Development
 
-The Asynqmon UI was bootstrapped using [Create React App](https://github.com/facebook/create-react-app), a popular toolkit for generating React application setups. You can find general information about Create React App on [their documentation site](https://create-react-app.dev/).
+Use Node.js 22.12+ and npm:
 
-Instead of plain JavaScript, we use [TypeScript](https://www.typescriptlang.org/) to ensure typed code.
+```sh
+cd ui
+npm ci
+npm start
+```
 
-## Development environment
+Open http://localhost:3000. Vite proxies `/api` to the Go server on
+`127.0.0.1:8080`. Run the backend with your Redis configuration in another
+terminal. The UI does not include demo data.
 
-To work with the React UI code, you will need to have the following tools installed:
+```sh
+# From the repository root; needs Go as specified in go.mod.
+make api
+./api --redis-addr=127.0.0.1:6379
+```
 
-- The [Node.js](https://nodejs.org/) JavaScript runtime.
-- The [Yarn](https://yarnpkg.com/) package manager.
-- _Recommended:_ An editor with TypeScript, React, and [ESLint](https://eslint.org/) linting support. See e.g. [Create React App's editor setup instructions](https://create-react-app.dev/docs/setting-up-your-editor/). If you are not sure which editor to use, we recommend using [Visual Studio Code](https://code.visualstudio.com/docs/languages/typescript). Make sure that [the editor uses the project's TypeScript version rather than its own](https://code.visualstudio.com/docs/typescript/typescript-compiling#_using-the-workspace-version-of-typescript).
+The Metrics entry remains visible in development, but Vite does not have the
+Go server's runtime “Prometheus configured” marker. It therefore shows the
+setup guide. Use the embedded production UI or the Compose demo to exercise
+live charts.
 
-**NOTE**: When using Visual Studio Code, be sure to open the `ui/` directory in the editor instead of the root of the repository. This way, the right ESLint and TypeScript configuration will be picked up from the React workspace.
+## Checks and production build
 
-## Installing npm dependencies
+```sh
+npm run typecheck
+npm test
+npm run build
+```
 
-The React UI depends on a large number of [npm](https://www.npmjs.com/) packages. These are not checked in, so you will need to download and install them locally via the Yarn package manager:
+The build produces `ui/build`, which is embedded in the Go binary. From the
+repository root, `make build` installs the locked frontend dependencies, builds
+the UI, and compiles the binary. Docker and the release workflow use the same
+npm lockfile.
 
-    yarn
+The Vite HTML plugin preserves Go's runtime `RootPath`, read-only flag, and a
+boolean marker indicating whether Prometheus is configured. The Prometheus URL
+from the server configuration is never embedded in browser assets or HTML.
+Entry asset URLs are prefixed by the server's root path; lazy chunks resolve
+relative to their own
+URLs. This supports both `/` and mounts such as `/monitoring`, including direct
+links to nested pages. `vite preview` alone does not evaluate Go templates; use
+the Go server to preview a production build.
 
-Yarn consults the `package.json` and `yarn.lock` files for dependencies to install. It creates a `node_modules` directory with all installed dependencies.
+## Structure
 
-**NOTE**: Remember to change directory to `ui/` before running this command and the following commands.
+- `layout/`: responsive navigation, application shell, and lazy page routes.
+- `components/common/`: shared page headers and statistic cards.
+- `views/`: monitoring pages and settings.
+- `theme.tsx`: shared colors, typography, component styles, and light/dark themes.
+- `actions/`, `reducers/`, `api.ts`: existing server operations and state management.
 
-## Running a local development server
+Polling is serial: the next request is scheduled only after the current one
+settles. Every polled read receives an `AbortSignal`, and unmounting or changing
+its query cancels the old generation before it can update Redux or freshness
+state. The Dashboard's manual Refresh action also creates a new generation for
+both the queue list and queue-history request. Even if a test adapter or network
+layer resolves an aborted request late, that older payload is discarded. Pause,
+resume, and delete actions cancel an older queue poll before the mutation and
+refresh the queue list after it completes.
 
-You can start a development server for the React UI outside of a running Asynqmon server by running:
+## Browser checks
 
-    yarn start
+```sh
+npx playwright install chromium
+npm run test:e2e
+```
 
-This will open a browser window with the React app running on http://localhost:3000/. The page will reload if you make edits to the source code. You will also see any lint errors in the console.
+Playwright starts Vite and supplies local API fixtures. It also starts a real
+Go process for authentication, CSRF/read-only, embedded assets, and lazy-route
+checks. The suite covers URL history, queue search, task details, stale/offline
+recovery, the Prometheus setup state, live metrics fixtures, mobile navigation,
+and a deterministic chart screenshot without mutating a Redis instance.
 
-## Building the app for production
+The screenshot baseline is Linux-specific and stored beside
+`e2e/charts.visual.spec.ts`. Review an intentional chart change locally before
+updating it:
 
-To build a production-optimized version of the React app to a `build` subdirectory, run:
-
-    yarn build
-
-**NOTE:** You will likely not need to do this directly. Instead, this is taken care of by the `build` target in the main Asynqmon `Makefile` when building the full binary.
-
-## Integration into Asynqmon
-
-To build a Asynqmon binary that includes a compiled-in version of the production build of the React app, change to the root of the repository and run:
-
-    make build
-
-This installs npm dependencies via Yarn, builds a production build of the React app, and then finally compiles in all web assets into the Asynqmon binary.
+```sh
+npx playwright test e2e/charts.visual.spec.ts --update-snapshots
+npx playwright test e2e/charts.visual.spec.ts
+```
