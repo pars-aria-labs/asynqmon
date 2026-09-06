@@ -1,10 +1,15 @@
 name: Test
 
 on:
+  workflow_call:
   pull_request:
   push:
     branches: [master, main]
   workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -24,13 +29,13 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: ui/package-lock.json
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
           cache-dependency-path: |
@@ -50,7 +55,7 @@ jobs:
         working-directory: ui
       - name: Upload browser diagnostics on failure
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: playwright-diagnostics
           path: |
@@ -90,11 +95,11 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v7
-      - uses: docker/setup-qemu-action@v4
-      - uses: docker/setup-buildx-action@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
       - name: Build target-platform image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: .
           platforms: ${{ matrix.platform }}
@@ -113,7 +118,7 @@ jobs:
             --publish 127.0.0.1:18080:8080 \
             "$IMAGE" --redis-addr=host.docker.internal:6379)"
           trap 'docker logs "$container_id"; docker rm --force "$container_id"' EXIT
-          for attempt in {1..30}; do
+          for _attempt in {1..30}; do
             if curl --fail --silent --show-error http://127.0.0.1:18080/api/queues >/dev/null; then
               exit 0
             fi
@@ -126,12 +131,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Start the complete demo stack
         run: docker compose -f compose.demo.yaml up --build --detach --wait
       - name: Verify Redis-backed UI and Prometheus queries
         run: |
-          for attempt in {1..60}; do
+          for _attempt in {1..60}; do
             if curl --fail --silent --show-error http://127.0.0.1:8080/api/queues >/dev/null &&
               curl --fail --silent --show-error \
                 "http://127.0.0.1:8080/api/metrics?duration=60" |

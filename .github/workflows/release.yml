@@ -1,20 +1,95 @@
 name: Release
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: release
+  queue: max
 
 permissions:
   contents: read
 
 jobs:
+  validate:
+    name: Validate release tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      release-tag: ${{ steps.release.outputs.tag }}
+      prerelease: ${{ steps.release.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate version and source branch
+        id: release
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          core='(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)'
+          identifier='(0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)'
+          semver="^v${core}(-${identifier}(\.${identifier})*)?$"
+          if [[ ! "$GITHUB_REF_NAME" =~ $semver ]]; then
+            echo "::error::Release tags must look like v1.2.3 or v1.2.3-rc.1."
+            exit 1
+          fi
+          if [[ "${#GITHUB_REF_NAME}" -gt 128 ]]; then
+            echo "::error::The release tag exceeds the OCI limit of 128 characters."
+            exit 1
+          fi
+
+          git fetch --no-tags origin "$DEFAULT_BRANCH"
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" FETCH_HEAD; then
+            echo "::error::The tagged commit must already be part of $DEFAULT_BRANCH."
+            exit 1
+          fi
+
+          release_state="$(bash .github/scripts/release-guard.sh \
+            "$GITHUB_REF_NAME" "$GITHUB_SHA")"
+          if [[ "$release_state" == "published" ]]; then
+            echo "::error::A published release already exists for $GITHUB_REF_NAME."
+            exit 1
+          fi
+
+          prerelease=false
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            prerelease=true
+          fi
+          {
+            echo "tag=$GITHUB_REF_NAME"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+
+  verify:
+    name: Run the complete test workflow
+    needs: validate
+    uses: ./.github/workflows/test.yml
+    permissions:
+      contents: read
+
+  verify-codeql:
+    name: Run CodeQL for the release commit
+    needs: validate
+    uses: ./.github/workflows/codeql-analysis.yml
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
   build-ui:
     name: Build release UI
+    needs: [verify, verify-codeql]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "22"
           cache: npm
@@ -23,7 +98,7 @@ jobs:
         run: npm ci --no-audit --no-fund && npm run build
         working-directory: ui
       - name: Preserve production assets
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ui-build
           path: ui/build
@@ -41,15 +116,15 @@ jobs:
         goos: [linux, darwin, windows]
         goarch: [amd64, arm64]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
       - name: Remove checkout assets before restoring the release build
         run: rm -rf ui/build
       - name: Restore production assets
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: ui-build
           path: ui/build
@@ -59,8 +134,7 @@ jobs:
           TARGET_ARCH: ${{ matrix.goarch }}
         run: |
           set -euo pipefail
-          tag="${GITHUB_REF_NAME//\//-}"
-          base="asynqmon_${tag}_${TARGET_OS}_${TARGET_ARCH}"
+          base="asynqmon_${GITHUB_REF_NAME}_${TARGET_OS}_${TARGET_ARCH}"
           package_dir="dist/${base}"
           mkdir -p "$package_dir"
 
@@ -80,47 +154,57 @@ jobs:
           fi
           rm -rf "$package_dir"
       - name: Preserve release package
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/*
           if-no-files-found: error
           retention-days: 2
 
-  publish-binaries:
-    name: Publish binaries and provenance
+  prepare-assets:
+    name: Prepare checksums and provenance
     needs: build-binaries
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: write
+      contents: read
       id-token: write
       attestations: write
       artifact-metadata: write
     steps:
       - name: Restore release packages
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: release-*
           path: dist
           merge-multiple: true
-      - name: Generate SHA-256 checksums
+      - name: Generate and verify SHA-256 checksums
         run: |
+          set -euo pipefail
           cd dist
-          sha256sum asynqmon_* > checksums.txt
+          shopt -s nullglob
+          archives=(asynqmon_*.tar.gz asynqmon_*.zip)
+          if [[ "${#archives[@]}" -ne 6 ]]; then
+            echo "::error::Expected six release archives, found ${#archives[@]}."
+            exit 1
+          fi
+          sha256sum "${archives[@]}" > checksums.txt
           sha256sum --check checksums.txt
       - name: Create build-provenance attestation
-        uses: actions/attest@v4
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-checksums: dist/checksums.txt
-      - name: Upload assets to the GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$GITHUB_REF_NAME" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+      - name: Preserve final release assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-assets
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
 
   publish-container:
     name: Publish multi-platform container
-    needs: publish-binaries
+    needs: [validate, prepare-assets]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -130,50 +214,129 @@ jobs:
       attestations: write
       artifact-metadata: write
     steps:
-      - uses: actions/checkout@v7
-      - uses: docker/setup-qemu-action@v4
-      - uses: docker/setup-buildx-action@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
       - name: Sign in to GitHub Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
-      - name: Prepare image tags
+      - name: Prepare image name
         id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - name: Prepare image tags and OCI metadata
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=raw,value=${{ needs.validate.outputs.release-tag }}
+            type=raw,value=latest,enable=${{ needs.validate.outputs.prerelease == 'false' }}
+          labels: |
+            org.opencontainers.image.title=Asynqmon
+            org.opencontainers.image.description=A web dashboard for Asynq queues and tasks
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.validate.outputs.release-tag }}
+      - name: Revalidate tag and release state before registry push
         env:
-          IS_PRERELEASE: ${{ github.event.release.prerelease }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.validate.outputs.release-tag }}
         run: |
-          image="ghcr.io/${GITHUB_REPOSITORY,,}"
-          tag="${GITHUB_REF_NAME//[^A-Za-z0-9_.-]/-}"
-          if [[ ! "$tag" =~ ^[A-Za-z0-9_] ]]; then
-            tag="v${tag}"
+          set -euo pipefail
+          release_state="$(bash .github/scripts/release-guard.sh \
+            "$RELEASE_TAG" "$GITHUB_SHA")"
+          if [[ "$release_state" == "published" ]]; then
+            echo "::error::A published release already exists for $RELEASE_TAG."
+            exit 1
           fi
-          tag="${tag:0:128}"
-          {
-            echo "name=$image"
-            echo "tags<<EOF"
-            echo "$image:$tag"
-            if [[ "$IS_PRERELEASE" == "false" ]]; then
-              echo "$image:latest"
-            fi
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
       - name: Build and push amd64/arm64 image
         id: build
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.image.outputs.tags }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
           cache-from: type=gha,scope=release-container
           cache-to: type=gha,mode=max,scope=release-container
           provenance: mode=max
           sbom: true
       - name: Create image-provenance attestation
-        uses: actions/attest@v4
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-name: ${{ steps.image.outputs.name }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
+
+  publish-release:
+    name: Publish immutable-ready GitHub release
+    needs: [validate, prepare-assets, publish-container]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Restore final release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-assets
+          path: dist
+      - name: Create or resume the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.validate.outputs.release-tag }}
+          IS_PRERELEASE: ${{ needs.validate.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          release_state="$(bash .github/scripts/release-guard.sh \
+            "$RELEASE_TAG" "$GITHUB_SHA")"
+          if [[ "$release_state" == "published" ]]; then
+            echo "::error::A published release already exists for $RELEASE_TAG."
+            exit 1
+          fi
+          if [[ "$release_state" == "absent" ]]; then
+            args=(--draft --verify-tag --generate-notes --title "$RELEASE_TAG")
+            if [[ "$IS_PRERELEASE" == "true" ]]; then
+              args+=(--prerelease)
+            fi
+            gh release create "$RELEASE_TAG" "${args[@]}" \
+              --repo "$GITHUB_REPOSITORY"
+          fi
+      - name: Upload all release assets to the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.validate.outputs.release-tag }}
+        run: gh release upload "$RELEASE_TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+      - name: Publish the completed release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.validate.outputs.release-tag }}
+          IS_PRERELEASE: ${{ needs.validate.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          release_state="$(bash .github/scripts/release-guard.sh \
+            "$RELEASE_TAG" "$GITHUB_SHA")"
+          if [[ "$release_state" != "draft" ]]; then
+            echo "::error::Expected a draft release for $RELEASE_TAG, found $release_state."
+            exit 1
+          fi
+          if [[ "$IS_PRERELEASE" == "true" ]]; then
+            gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false \
+              --repo "$GITHUB_REPOSITORY"
+          else
+            gh release edit "$RELEASE_TAG" --draft=false --prerelease=false --latest \
+              --repo "$GITHUB_REPOSITORY"
+          fi
