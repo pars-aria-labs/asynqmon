@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hibiken/asynq"
+	"github.com/pars-aria-labs/asynq"
 )
 
 type payload struct {

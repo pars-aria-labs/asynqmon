@@ -5,8 +5,8 @@ go 1.25.0
 require (
 	github.com/google/go-cmp v0.7.0
 	github.com/gorilla/mux v1.8.1
-	github.com/hibiken/asynq v0.24.1
-	github.com/hibiken/asynq/x v0.0.0-20211219150637-8dfabfccb3be
+	github.com/pars-aria-labs/asynq v0.27.1
+	github.com/pars-aria-labs/asynq/x v0.27.1
 	github.com/prometheus/client_golang v1.23.2
 	github.com/redis/go-redis/v9 v9.20.0
 	github.com/rs/cors v1.11.1
@@ -27,5 +27,3 @@ require (
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
-
-replace github.com/hibiken/asynq => github.com/parsidev/asynq v0.26.0-parsidev.0.20260609061401-e6fb2f09f7f8

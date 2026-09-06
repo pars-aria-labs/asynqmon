@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hibiken/asynq"
-	"github.com/hibiken/asynq/x/metrics"
+	"github.com/pars-aria-labs/asynq"
+	"github.com/pars-aria-labs/asynq/x/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )

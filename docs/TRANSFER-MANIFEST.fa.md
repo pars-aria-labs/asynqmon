@@ -14,8 +14,9 @@ github.com/pars-aria-labs/asynqmon
 
 ماژول تست adapterها نیز اکنون
 `github.com/pars-aria-labs/asynqmon/integration/frameworks` است. importهای
-`github.com/hibiken/asynq` نباید به‌صورت مکانیکی تغییر کنند؛ fork Parsidev همین
-module identity را اعلام می‌کند و از راه `replace` انتخاب می‌شود.
+Asynq نیز مستقیماً از `github.com/pars-aria-labs/asynq` و module افزونهٔ
+`github.com/pars-aria-labs/asynq/x` استفاده می‌کنند. هیچ `replace`ای برای
+انتخاب پیاده‌سازی Asynq لازم نیست.
 
 ## مسیرهای جدید یا جایگزین‌شدهٔ مهم
 

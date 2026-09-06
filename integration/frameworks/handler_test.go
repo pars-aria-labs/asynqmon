@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hibiken/asynq"
+	"github.com/pars-aria-labs/asynq"
 	"github.com/pars-aria-labs/asynqmon"
 	"github.com/labstack/echo/v4"
 )

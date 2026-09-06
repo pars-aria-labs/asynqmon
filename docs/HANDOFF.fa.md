@@ -35,20 +35,23 @@
 github.com/pars-aria-labs/asynqmon
 ```
 
-پیاده‌سازی Asynq از fork زیر استفاده می‌کند:
+پیاده‌سازی Asynq مستقیماً از moduleهای زیر استفاده می‌کند:
 
 ```text
-github.com/parsidev/asynq v0.26.0-parsidev.0.20260609061401-e6fb2f09f7f8
+github.com/pars-aria-labs/asynq v0.27.1
+github.com/pars-aria-labs/asynq/x v0.27.1
 ```
 
-این fork هویت module اصلی یعنی `github.com/hibiken/asynq` را حفظ کرده است؛ در
-نتیجه importهای Asynq عمداً با همان مسیر اصلی باقی مانده‌اند و `replace`،
-پیاده‌سازی Parsidev را انتخاب می‌کند. چون Go دستور `replace` یک dependency را
-به module مصرف‌کننده منتقل نمی‌کند، پروژه‌هایی که Asynqmon را import می‌کنند
-باید این خط را نیز در `go.mod` خود داشته باشند:
+هر module هویت سازمانی متناظر خود، یعنی `github.com/pars-aria-labs/asynq` و
+`github.com/pars-aria-labs/asynq/x`، را مستقیماً اعلام می‌کند؛ بنابراین importهای
+برنامه نیز از همین مسیرها استفاده می‌کنند و دیگر نیازی به دستور `replace` در
+این پروژه یا برنامهٔ مصرف‌کننده نیست. برای افزودن وابستگی‌ها به یک برنامهٔ
+تازه می‌توان از این فرمان‌ها استفاده کرد:
 
-```go
-replace github.com/hibiken/asynq => github.com/parsidev/asynq v0.26.0-parsidev.0.20260609061401-e6fb2f09f7f8
+```sh
+go get github.com/pars-aria-labs/asynqmon@latest
+go get github.com/pars-aria-labs/asynq@v0.27.1
+go mod tidy
 ```
 
 برای توسعه روی checkout محلی می‌توان replacement دوم را هم موقتاً افزود:

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hibiken/asynq"
+	"github.com/pars-aria-labs/asynq"
 )
 
 func TestLibraryAuthenticationCoversAllRoutes(t *testing.T) {

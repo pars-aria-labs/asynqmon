@@ -436,7 +436,7 @@ function PrometheusSetupView() {
               this URL; use a network-restricted Prometheus endpoint instead.
             </Typography>
             <SetupCode>{`import (
-  "github.com/hibiken/asynq"
+  "github.com/pars-aria-labs/asynq"
   asynqmon "github.com/pars-aria-labs/asynqmon"
 )
 

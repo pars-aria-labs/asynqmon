@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/hibiken/asynq"
+	"github.com/pars-aria-labs/asynq"
 	"github.com/redis/go-redis/v9"
 )
 

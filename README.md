@@ -9,7 +9,7 @@
 [![CodeQL](https://github.com/pars-aria-labs/asynqmon/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/pars-aria-labs/asynqmon/actions/workflows/codeql-analysis.yml)
 
 Asynqmon is a responsive web dashboard for inspecting and administering
-[Asynq](https://github.com/hibiken/asynq) queues, tasks, schedulers, servers,
+[Asynq](https://github.com/pars-aria-labs/asynq) queues, tasks, schedulers, servers,
 Redis state, and Prometheus time series. It can run as a standalone binary or
 be mounted as an HTTP handler inside an existing Go service.
 
@@ -23,17 +23,16 @@ of the upstream Asynqmon project.
 | Original dashboard | [`github.com/hibiken/asynqmon`](https://github.com/hibiken/asynqmon), distributed under the MIT License |
 | Migration baseline | Local tag `v0.7.2-parsidev-1`, commit [`8bf6ad3`](https://github.com/pars-aria-labs/asynqmon/commit/8bf6ad3618d90570102589ee2c8e2e891d07547f) |
 | Current module | `github.com/pars-aria-labs/asynqmon` |
-| Asynq implementation | [`github.com/parsidev/asynq`](https://github.com/parsidev/asynq) at `v0.26.0-parsidev.0.20260609061401-e6fb2f09f7f8` |
+| Asynq implementation | [`github.com/pars-aria-labs/asynq`](https://github.com/pars-aria-labs/asynq) at `v0.27.1` |
 
-The Asynq fork intentionally declares the original module path
-`github.com/hibiken/asynq`. For that reason, application code continues to
-import Asynq from its original path while `go.mod` replaces its implementation
-with the Parsidev fork. See [Using Asynqmon as a library](#using-asynqmon-as-a-library)
-for the one replacement directive consumers must copy.
+The Asynq implementation now declares and publishes its own
+`github.com/pars-aria-labs/asynq` module identity. Application code imports it
+directly, and consumers no longer need to copy a `replace` directive. The
+optional metrics collector is published from the matching
+`github.com/pars-aria-labs/asynq/x` module.
 
-This branch is tested against the exact Parsidev Asynq pseudo-version shown in
-the table. Historical upstream compatibility tables should not be assumed to
-describe this fork.
+This branch is tested against `v0.27.1` of both Asynq modules. Historical
+upstream compatibility tables should not be assumed to describe this fork.
 
 ### What changed in this fork
 
@@ -291,8 +290,8 @@ mode, the host application owns its Prometheus registry and scrape endpoint:
 import (
 	"net/http"
 
-	"github.com/hibiken/asynq"
-	"github.com/hibiken/asynq/x/metrics"
+	"github.com/pars-aria-labs/asynq"
+	"github.com/pars-aria-labs/asynq/x/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -339,23 +338,27 @@ clickjacking.
 
 ## Using Asynqmon as a library
 
-First add the module and copy its Asynq replacement into the consuming
-application. Dependency-module `replace` directives are not inherited by Go,
-so the `go mod edit -replace` command is required:
+Add Asynqmon and the matching Asynq release to the consuming application:
 
 ```sh
-go mod edit \
-  -replace=github.com/hibiken/asynq=github.com/parsidev/asynq@v0.26.0-parsidev.0.20260609061401-e6fb2f09f7f8
 go get github.com/pars-aria-labs/asynqmon@latest
+go get github.com/pars-aria-labs/asynq@v0.27.1
 go mod tidy
+```
+
+Applications using the optional metrics collector should add its module at the
+same version:
+
+```sh
+go get github.com/pars-aria-labs/asynq/x@v0.27.1
 ```
 
 `@latest` starts resolving this module path only after a new tag containing
 the rename has been published. Do not reuse the baseline
 `v0.7.2-parsidev-1` tag, whose `go.mod` still belongs to the previous module.
 
-Keep importing Asynq as `github.com/hibiken/asynq`; the Parsidev fork retains
-that module identity.
+Import Asynq directly from `github.com/pars-aria-labs/asynq`. No module
+replacement is required.
 
 ### `net/http` example
 
@@ -369,7 +372,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/hibiken/asynq"
+	"github.com/pars-aria-labs/asynq"
 	"github.com/pars-aria-labs/asynqmon"
 )
 
@@ -434,18 +437,24 @@ If custom middleware and built-in Basic Auth are both configured, both checks
 must succeed. Adapter examples for Gin and Echo are compiled and tested under
 [`integration/frameworks`](integration/frameworks).
 
-### Migrating from the upstream import
+### Migrating to the current modules
 
-Change only the Asynqmon module/import path:
+Remove previous Asynqmon and Asynq requirements and delete any legacy Asynq
+`replace` directive from `go.mod`; `go mod tidy` does not remove an unused
+replacement automatically. Then add the current modules:
 
-```diff
-- github.com/hibiken/asynqmon
-+ github.com/pars-aria-labs/asynqmon
+```sh
+go get github.com/pars-aria-labs/asynqmon@latest
+go get github.com/pars-aria-labs/asynq@v0.27.1
+go mod tidy
 ```
 
-Then add the Asynq `replace` directive shown above. Public handler concepts such
-as `Options`, `New`, `RootPath`, and `Close` remain familiar, while the new auth
-and middleware fields are opt-in.
+Update application imports to the paths shown in the examples above. Public
+handler concepts such as `Options`, `New`, `RootPath`, and `Close` remain
+familiar, while the new auth and middleware fields are opt-in. Go treats
+identical-looking types from different module paths as distinct, so migrate
+every direct Asynq import before passing connection options, clients,
+inspectors, or tasks to Asynqmon.
 
 ## Development and verification
 

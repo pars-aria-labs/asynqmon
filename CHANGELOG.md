@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Module path is now `github.com/pars-aria-labs/asynqmon`.
+- Asynq imports now use `github.com/pars-aria-labs/asynq` directly at
+  `v0.27.1`; the legacy module replacement has been removed.
 - Frontend migrated from CRA/React 16/Material UI 4 to
   Vite/React 18/Material UI 7, with Recharts 3.
 - Prometheus proxy requests now validate configuration and responses, inherit
@@ -59,7 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.7.0] - 2022-04-11
 
-Version 0.7 added support for [Task Aggregation](https://github.com/hibiken/asynq/wiki/Task-aggregation) feature
+Version 0.7 added support for the
+[Task Aggregation](https://github.com/pars-aria-labs/asynq#features) feature.
 
 ### Added
  
