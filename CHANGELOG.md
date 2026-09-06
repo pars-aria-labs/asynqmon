@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   adapter, security, and visual-regression coverage.
 - Multi-architecture container CI and release provenance, checksums, SBOM, and
   GHCR publishing.
+- Persian maintainer runbook for GitHub Actions, immutable-ready releases,
+  GHCR access, verification, and failure recovery.
 
 ### Changed
 
@@ -36,9 +38,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Existing standalone Basic Auth and read-only handling now cover their full
   intended route scope and fail closed on partial configuration.
 - Release binaries now cover Linux, macOS, and Windows on amd64 and arm64.
-- Container publication now waits for successful binary publication. Release
-  names are normalized into OCI-compatible image tags with a valid leading
-  character and a maximum length of 128 characters.
+- Release automation is now driven by validated SemVer-style tags whose
+  commits already belong to the default branch. It reuses the complete test
+  and CodeQL workflows, publishes containers only after all binary artifacts
+  and attestations succeed, and publishes the GitHub Release from a completed
+  draft so immutable releases remain compatible.
+- GitHub Actions are pinned to full commit SHAs and tracked by Dependabot;
+  Docker build stages are pinned to manifest digests, duplicate CI runs are
+  cancelled, and release runs remain serialized in a FIFO queue.
+- Release publication revalidates the remote tag and queries the Releases API
+  fail-closed before registry and final publication steps, preventing a moved
+  or reused tag from silently binding artifacts to another commit.
 
 ### Fixed
 

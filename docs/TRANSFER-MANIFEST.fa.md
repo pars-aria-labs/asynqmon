@@ -17,9 +17,14 @@ github.com/pars-aria-labs/asynqmon
 `github.com/hibiken/asynq` نباید به‌صورت مکانیکی تغییر کنند؛ fork Parsidev همین
 module identity را اعلام می‌کند و از راه `replace` انتخاب می‌شود.
 
-## مسیرهای جدید مهم
+## مسیرهای جدید یا جایگزین‌شدهٔ مهم
 
 ```text
+.github/actionlint.yaml
+.github/dependabot.yml
+.github/scripts/release-guard.sh
+.github/workflows/codeql-analysis.yml
+.github/workflows/release.yml
 .github/workflows/test.yml
 auth.go
 auth_test.go
@@ -27,6 +32,7 @@ cmd/demo/
 compose.demo.yaml
 dev/
 docs/HANDOFF.fa.md
+docs/RELEASING.fa.md
 docs/TRANSFER-MANIFEST.fa.md
 integration/frameworks/
 library_integration_test.go
@@ -56,7 +62,10 @@ ui/build/assets/
 workflowهای `release.yml` و `codeql-analysis.yml` جایگزین نسخه‌های قدیمی
 شده‌اند. workflow مستقل `docker-image-publish.yml` عمداً حذف شده، چون image
 upstream را در Docker Hub هدف می‌گرفت؛ انتشار container اکنون بخشی از workflow
-Release و مقصد آن GHCR همین repository است.
+Release و مقصد آن GHCR همین repository است. این فایل‌ها باید با هم و از راه
+Pull Request وارد شاخهٔ پیش‌فرض `main` شوند؛ اجرای انتشار از یک شاخهٔ واگرا یا
+کپی انتخابی workflowها پشتیبانی نمی‌شود. جزئیات در
+[`RELEASING.fa.md`](RELEASING.fa.md) آمده است.
 
 ## مسیرهای عمداً حذف‌شده
 

@@ -6,6 +6,7 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/pars-aria-labs/asynqmon.svg)](https://pkg.go.dev/github.com/pars-aria-labs/asynqmon)
 [![Test](https://github.com/pars-aria-labs/asynqmon/actions/workflows/test.yml/badge.svg)](https://github.com/pars-aria-labs/asynqmon/actions/workflows/test.yml)
+[![CodeQL](https://github.com/pars-aria-labs/asynqmon/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/pars-aria-labs/asynqmon/actions/workflows/codeql-analysis.yml)
 
 Asynqmon is a responsive web dashboard for inspecting and administering
 [Asynq](https://github.com/hibiken/asynq) queues, tasks, schedulers, servers,
@@ -20,7 +21,7 @@ of the upstream Asynqmon project.
 | Part | Source used by this repository |
 | --- | --- |
 | Original dashboard | [`github.com/hibiken/asynqmon`](https://github.com/hibiken/asynqmon), distributed under the MIT License |
-| Migration baseline | Tag [`v0.7.2-parsidev-1`](https://github.com/pars-aria-labs/asynqmon/tree/v0.7.2-parsidev-1), commit [`8bf6ad3`](https://github.com/pars-aria-labs/asynqmon/commit/8bf6ad3618d90570102589ee2c8e2e891d07547f) |
+| Migration baseline | Local tag `v0.7.2-parsidev-1`, commit [`8bf6ad3`](https://github.com/pars-aria-labs/asynqmon/commit/8bf6ad3618d90570102589ee2c8e2e891d07547f) |
 | Current module | `github.com/pars-aria-labs/asynqmon` |
 | Asynq implementation | [`github.com/parsidev/asynq`](https://github.com/parsidev/asynq) at `v0.26.0-parsidev.0.20260609061401-e6fb2f09f7f8` |
 
@@ -93,32 +94,39 @@ troubleshooting.
 
 ### Release binary
 
-Download the archive for your operating system and architecture from the
+After the first delivery run completes, download the archive for your operating
+system and architecture from the
 [GitHub Releases page](https://github.com/pars-aria-labs/asynqmon/releases),
 extract it, and run `asynqmon` (`asynqmon.exe` on Windows).
 
-Releases created by the new workflow contain Linux, macOS, and Windows builds
-for `amd64` and `arm64`, along with `checksums.txt`. The
+Once the delivery workflows have been merged into the default branch, pushing
+a valid version tag starts the release workflow. A successful run creates
+Linux, macOS, and Windows builds for `amd64` and `arm64`, along with
+`checksums.txt`. The
 [release verification instructions](#verify-a-release) show how to validate a
 download.
 
 ### Container image
 
-When a release is published, its image supports `linux/amd64` and
-`linux/arm64`:
+Once the first release completes, its image supports `linux/amd64` and
+`linux/arm64`. Use the versioned tag shown on the Releases page:
 
 ```sh
-docker pull ghcr.io/pars-aria-labs/asynqmon:latest
+docker pull ghcr.io/pars-aria-labs/asynqmon:vX.Y.Z
 
 docker run --rm \
   --name asynqmon \
   --add-host=host.docker.internal:host-gateway \
   --publish 127.0.0.1:8080:8080 \
-  ghcr.io/pars-aria-labs/asynqmon:latest \
+  ghcr.io/pars-aria-labs/asynqmon:vX.Y.Z \
   --redis-addr=host.docker.internal:6379
 ```
 
-Prefer an immutable release tag instead of `latest` in production.
+Stable releases also update `latest`; pre-releases do not. Public GHCR packages
+can be pulled anonymously. Private packages require a personal access token
+(classic) with `read:packages`; authorize it for SSO when the organization
+requires that. For immutable production deployments, pin the image digest;
+otherwise prefer a versioned tag over `latest`.
 
 ### Build from source
 
@@ -469,6 +477,17 @@ instance. See [`ui/README.md`](ui/README.md) for frontend development details
 and [`docs/HANDOFF.fa.md`](docs/HANDOFF.fa.md) for the Persian implementation
 and validation record.
 
+## Maintainer releases
+
+Release automation is driven by a SemVer-style tag such as `v0.8.0` or
+`v0.8.0-rc.1`. The tagged commit must already be part of the repository's
+default branch; the workflow then runs the complete test suite before it
+reruns CodeQL and publishes binaries, checksums, attestations, and the
+multi-platform GHCR image.
+Do not create the GitHub Release manually. The one-time repository settings,
+exact release commands, GHCR visibility choices, and recovery procedure are in
+the [Persian maintainer runbook](docs/RELEASING.fa.md).
+
 ## Verify a release
 
 Download all archives plus `checksums.txt` into one directory, then verify their
@@ -494,8 +513,19 @@ gh attestation verify \
 ```
 
 Containers published by the release workflow include an SBOM and
-registry-backed provenance. Use immutable tags or digests when promoting an
-image between environments.
+registry-backed provenance. The GitHub CLI requires an authenticated registry
+session for OCI verification, including for public images. Log in with a
+personal access token (classic) that has `read:packages`, then verify the image:
+
+```sh
+printf '%s' "$GHCR_TOKEN" | \
+  docker login ghcr.io --username YOUR_GITHUB_USERNAME --password-stdin
+gh attestation verify \
+  oci://ghcr.io/pars-aria-labs/asynqmon:vX.Y.Z \
+  --repo pars-aria-labs/asynqmon
+```
+
+Use digests when promoting an image between environments.
 
 ## License and attribution
 

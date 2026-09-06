@@ -27,9 +27,7 @@
 
 این پروژه یک fork مستقل از
 [`github.com/hibiken/asynqmon`](https://github.com/hibiken/asynqmon) با مجوز MIT
-است. نقطهٔ شروع این نوسازی، tag
-[`v0.7.2-parsidev-1`](https://github.com/pars-aria-labs/asynqmon/tree/v0.7.2-parsidev-1)
-در commit
+است. نقطهٔ شروع این نوسازی، tag محلی `v0.7.2-parsidev-1` در commit
 [`8bf6ad3`](https://github.com/pars-aria-labs/asynqmon/commit/8bf6ad3618d90570102589ee2c8e2e891d07547f)
 از تاریخچهٔ همین پروژه بوده است. module نگه‌داری‌شدهٔ فعلی این است:
 
@@ -175,8 +173,9 @@ producer/worker مصنوعی و Prometheus. داده‌ها موقت‌اند و
 راهنمای سناریوها در [`dev/README.md`](../dev/README.md) است.
 
 Dockerfile با BuildKit برای `linux/amd64` و `linux/arm64` cross-compile می‌کند،
-گواهی‌های CA را به image نهایی scratch می‌برد و process را با کاربر non-root
-اجرا می‌کند.
+base imageها را به digest دقیق پین می‌کند، گواهی‌های CA را به image نهایی
+scratch می‌برد، metadata استاندارد OCI را ثبت می‌کند و process را با کاربر
+non-root اجرا می‌کند.
 
 workflow تست شامل این بخش‌هاست:
 
@@ -186,18 +185,20 @@ workflow تست شامل این بخش‌هاست:
 - build و smoke واقعی container روی amd64 و arm64؛
 - بالا آوردن Compose و بررسی هم‌زمان API Redis و ۹ query مربوط به Prometheus.
 
-workflow انتشار برای Linux، macOS و Windows روی amd64 و arm64 archive می‌سازد،
-checksum SHA-256 و attestation تولید می‌کند، assetها را به GitHub Release می‌فرستد
-و image چندمعماری GHCR را همراه SBOM و provenance منتشر می‌کند. workflow قدیمی
-Docker Hub که مقصد upstream داشت حذف شده است. CodeQL نیز به action نسل چهار و
-زبان‌های Go و JavaScript/TypeScript به‌روز شده است.
+workflow انتشار با push شدن tag معتبری مانند `v0.8.0` یا `v0.8.0-rc.1` آغاز
+می‌شود. job نخست علاوه بر قالب نسخه، بررسی می‌کند commit موردنظر پیش‌تر وارد
+شاخهٔ پیش‌فرض شده باشد. سپس workflowهای کامل Test و CodeQL را به‌صورت reusable
+اجرا می‌کند، برای Linux، macOS و Windows روی amd64 و arm64 archive می‌سازد،
+checksum SHA-256 و attestation تولید می‌کند و image چندمعماری GHCR را همراه
+SBOM و provenance منتشر می‌سازد. GitHub Release فقط پس از موفقیت تمام این
+مراحل، ابتدا به شکل draft و سپس به شکل نهایی منتشر می‌شود؛ این ترتیب با
+Immutable Releases سازگار است.
 
-job مربوط به container با `needs: publish-binaries` تنها پس از انتشار موفق
-binaryها آغاز می‌شود؛ پس شکست در ساخت، checksum، attestation یا بارگذاری
-assetها مانع انتشار image خواهد شد. tag مربوط به GHCR نیز از نام release ساخته
-و برای قواعد OCI نرمال می‌شود: کاراکترهای خارج از `[A-Za-z0-9_.-]` به `-`
-تبدیل می‌شوند، شروع نامعتبر با `v` اصلاح می‌شود و طول نهایی از ۱۲۸ کاراکتر
-بیشتر نخواهد بود.
+نسخهٔ پایدار tag داکر `latest` را نیز به‌روز می‌کند، اما پیش‌انتشار چنین کاری
+نمی‌کند. image دارای برچسب‌های استاندارد OCI، از جمله repository منبع، است.
+workflow قدیمی Docker Hub که مقصد upstream داشت حذف شده و CodeQL زبان‌های Go و
+JavaScript/TypeScript را پوشش می‌دهد. تمام GitHub Actionها به commit SHA دقیق
+پین شده‌اند و Dependabot به‌روزرسانی هفتگی آن‌ها را پیشنهاد می‌دهد.
 
 ## روش استفاده در سرویس Go
 
@@ -250,16 +251,19 @@ http.Handle(monitor.RootPath()+"/", monitor)
 
 ## موارد وابسته به محیط بیرونی
 
-کار اجراییِ باز در سورس باقی نمانده است. دو اثبات عملی فقط بعد از انتشار مخزن
-جدید ممکن‌اند:
+پیاده‌سازی محلی این مرحله کامل است، اما فعال شدن CI/CD به یک ادغام بیرونی
+وابسته است. در ۶ سپتامبر ۲۰۲۶ مخزن مقصد وجود دارد، `origin` به
+`github.com/pars-aria-labs/asynqmon` اشاره می‌کند و شاخهٔ پیش‌فرض آن `main` است؛
+بااین‌حال، تاریخچهٔ `master` محلی و `origin/main` دارای commitهای اختصاصی و
+متفاوت است. بنابراین workflowهای جدید باید با یک شاخهٔ integration و Pull
+Request بازبینی‌شده وارد `main` شوند. force-push کردن `main` یا ساخت tag پیش از
+این ادغام مجاز نیست.
 
-1. مخزن `github.com/pars-aria-labs/asynqmon` ایجاد یا مقصد remote به آن منتقل و
-   commitها push شوند؛ remote محلی فعلی عمداً بدون اجازهٔ انتقال مخزن تغییر
-   داده نشده است.
-2. workflowهای Test، CodeQL و Release یک بار روی GitHub-hosted runner اجرا شوند؛
-   انتشار Release واقعی همچنین مجوز نوشتن GitHub Release، GHCR و attestation
-   را لازم دارد. نخستین release باید tag تازه‌ای روی commit دارای module path
-   جدید داشته باشد؛ tag مبنای `v0.7.2-parsidev-1` نباید دوباره استفاده شود.
+پس از ادغام، workflowهای Test و CodeQL باید روی GitHub-hosted runner سبز شوند و
+یک tag تازه روی commit موجود در `main` نخستین Release واقعی و package مربوط به
+GHCR را بسازد. tag مبنای `v0.7.2-parsidev-1` نباید به‌عنوان نسخهٔ جدید دوباره
+استفاده یا جابه‌جا شود. تنظیمات دقیق GitHub، دسترسی GHCR، فرمان‌های انتشار و
+روش بازیابی خطا در [`RELEASING.fa.md`](RELEASING.fa.md) ثبت شده‌اند.
 
 Docker CLI در محیط فعلی نصب نیست؛ بنابراین smoke کانتینر و Compose در همین
 ماشین قابل تکرار نیست. این بررسی‌ها داخل workflow واقعی تعریف شده‌اند و تمام
