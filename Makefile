@@ -1,9 +1,10 @@
 .PHONY: api assets build docker
 
 NODE_PATH ?= $(PWD)/ui/node_modules
+NODE_OPTIONS ?= --openssl-legacy-provider
 assets:
 	@if [ ! -d "$(NODE_PATH)"  ]; then cd ./ui && yarn install --modules-folder $(NODE_PATH); fi
-	cd ./ui && yarn build --modules-folder $(NODE_PATH)
+	cd ./ui && NODE_OPTIONS="$(NODE_OPTIONS)" yarn build --modules-folder $(NODE_PATH)
 
 # This target skips the overhead of building UI assets.
 # Intended to be used during development.

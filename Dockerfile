@@ -3,29 +3,33 @@
 # Building a frontend.
 #
 
-FROM alpine:3.17 AS frontend
+FROM node:24-alpine AS frontend
 
 # Move to a working directory (/static).
 WORKDIR /static
 
-# https://stackoverflow.com/questions/69692842/error-message-error0308010cdigital-envelope-routinesunsupported
+# react-scripts still uses a legacy digest while producing static assets. This
+# compatibility flag is scoped to the disposable frontend build stage.
 ENV NODE_OPTIONS=--openssl-legacy-provider
-# Install npm (with latest nodejs) and yarn (globally, in silent mode).
-RUN apk add --update nodejs npm && \
-    npm i -g -s --unsafe-perm yarn
 
-# Copy only ./ui folder to the working directory.
+# Install the same Yarn major version used by the checked-in lockfile.
+RUN npm install --global yarn@1.22.22
+
+# Cache dependency installation separately from application sources.
+COPY ui/package.json ui/yarn.lock ./
+RUN yarn install --frozen-lockfile
+
 COPY ui .
 
 # Run yarn scripts (install & build).
-RUN yarn install && yarn build
+RUN yarn build
 
 #
 # Second stage: 
 # Building a backend.
 #
 
-FROM golang:1.18-alpine AS backend
+FROM golang:1.25-alpine AS backend
 
 # Move to a working directory (/build).
 WORKDIR /build

@@ -2,8 +2,10 @@ name: Release
 
 on:
   release:
-    types:
-      - created
+    types: [published]
+
+permissions:
+  contents: write
 
 jobs:
   release:
@@ -13,42 +15,48 @@ jobs:
         goos: [darwin, linux, windows]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v7
         with:
-          go-version: 1.16
+          go-version: "1.25.x"
+          cache: true
 
       - name: Set up Node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v7
         with:
-          node-version: "12"
+          node-version: "24"
 
-      - name: Get release
-        id: release
-        uses: bruceadams/get-release@v1.2.2
+      - name: Install Yarn
+        run: npm install --global yarn@1.22.22
+
+      - name: Install frontend dependencies
+        working-directory: ui
+        run: yarn install --frozen-lockfile
+
+      - name: Build frontend assets
+        working-directory: ui
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          NODE_OPTIONS: --openssl-legacy-provider
+        run: yarn build
 
-      - name: Install NPM packages
-        run: cd ui && rm yarn.lock && yarn install
-
-      - name: Build Release Binary
+      - name: Build release archive
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          TARGET_OS: ${{ matrix.goos }}
         run: |
-          GOOS=${{ matrix.goos }} GOARCH=amd64 make build
-          tar -czvf asynqmon_${{ steps.release.outputs.tag_name }}_${{ matrix.goos }}_amd64.tar.gz asynqmon
-          ls
+          binary=asynqmon
+          if [ "$TARGET_OS" = windows ]; then
+            binary=asynqmon.exe
+          fi
+          CGO_ENABLED=0 GOOS="$TARGET_OS" GOARCH=amd64 \
+            go build -trimpath -ldflags="-s -w" -o "$binary" ./cmd/asynqmon
+          tar -czf "asynqmon_${RELEASE_TAG}_${TARGET_OS}_amd64.tar.gz" "$binary"
 
-      - name: Upload Release Binary
-        id: upload-go-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+      - name: Upload release archive
+        uses: softprops/action-gh-release@v3
         with:
-          upload_url: ${{ steps.release.outputs.upload_url }}
-          asset_path: ./asynqmon_${{ steps.release.outputs.tag_name }}_${{ matrix.goos }}_amd64.tar.gz
-          asset_name: asynqmon_${{ steps.release.outputs.tag_name }}_${{ matrix.goos }}_amd64.tar.gz
-          asset_content_type: application/gzip
+          files: asynqmon_${{ github.event.release.tag_name }}_${{ matrix.goos }}_amd64.tar.gz
