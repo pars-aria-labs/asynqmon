@@ -503,7 +503,14 @@ test("task details support JSON search, clipboard copy, and rerun", async ({
 
 test("freshness reports stale, offline, and recovered data", async ({ page }) => {
   const startedAt = new Date("2026-09-06T12:00:00Z");
-  await page.clock.install({ time: startedAt });
+  const pollIntervalSeconds = 60;
+  await page.clock.setFixedTime(startedAt);
+  await page.addInitScript((pollInterval) => {
+    localStorage.setItem(
+      "asynqmon:state",
+      JSON.stringify({ settings: { pollInterval } }),
+    );
+  }, pollIntervalSeconds);
   let online = true;
   await page.route("**/api/queues", (route) => fulfillLiveData(route, online));
   await page.route("**/api/queue_stats", (route) =>
@@ -513,13 +520,11 @@ test("freshness reports stale, offline, and recovered data", async ({ page }) =>
   await page.goto("/");
   await expect(page.getByLabel(/Data status: Updated \d+s ago/)).toBeVisible();
 
-  await page.clock.setSystemTime(
-    new Date(startedAt.getTime() + 31_000),
+  await page.clock.setFixedTime(
+    new Date(startedAt.getTime() + (pollIntervalSeconds * 3 + 1) * 1_000),
   );
-  await page.clock.runFor(1_000);
-  await expect(
-    page.getByLabel("Data status: Data may be stale"),
-  ).toBeVisible();
+  const staleStatus = page.getByLabel("Data status: Data may be stale");
+  await expect(staleStatus).toBeVisible();
 
   online = false;
   await page.getByRole("button", { name: "Refresh" }).click();
