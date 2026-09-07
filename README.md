@@ -24,11 +24,11 @@ Its current module path is:
 github.com/pars-aria-labs/asynqmon
 ```
 
-The code imports the Pars Aria Labs Asynq modules directly. The `v1.0.0`
+The code imports the Pars Aria Labs Asynq modules directly. The `v1.0.1`
 line of this dashboard is built and tested with:
 
-- `github.com/pars-aria-labs/asynq v1.0.0-beta.1`
-- `github.com/pars-aria-labs/asynq/x v0.27.1`
+- `github.com/pars-aria-labs/asynq v1.0.1`
+- `github.com/pars-aria-labs/asynq/x v1.0.1`
 
 No consumer-side `replace` directive is needed.
 
@@ -93,7 +93,7 @@ docker run --rm \
   --name asynqmon \
   --add-host=host.docker.internal:host-gateway \
   --publish 127.0.0.1:8080:8080 \
-  ghcr.io/pars-aria-labs/asynqmon:v1.0.0 \
+  ghcr.io/pars-aria-labs/asynqmon:v1.0.1 \
   --redis-addr=host.docker.internal:6379
 ```
 
@@ -279,13 +279,13 @@ These safeguards complement authentication; they do not replace it.
 
 ## Use Asynqmon as a Go library
 
-Once the `v1.0.0` release workflow has completed, install the dashboard and its
+Once the `v1.0.1` release workflow has completed, install the dashboard and its
 matching queue modules:
 
 ```sh
-go get github.com/pars-aria-labs/asynqmon@v1.0.0
-go get github.com/pars-aria-labs/asynq@v1.0.0-beta.1
-go get github.com/pars-aria-labs/asynq/x@v0.27.1
+go get github.com/pars-aria-labs/asynqmon@v1.0.1
+go get github.com/pars-aria-labs/asynq@v1.0.1
+go get github.com/pars-aria-labs/asynq/x@v1.0.1
 go mod tidy
 ```
 
@@ -383,8 +383,8 @@ Create an annotated or signed SemVer tag on that verified commit:
 git switch main
 git pull --ff-only
 git status --short
-git tag -s v1.0.0 -m 'Asynqmon v1.0.0'
-git push origin v1.0.0
+git tag -s v1.0.1 -m 'Asynqmon v1.0.1'
+git push origin v1.0.1
 ```
 
 Use `git tag -a` instead of `-s` only when release signing is not available.
@@ -410,11 +410,11 @@ After downloading all archives and `checksums.txt` into one directory:
 sha256sum --check checksums.txt
 
 gh attestation verify \
-  asynqmon_v1.0.0_linux_amd64.tar.gz \
+  asynqmon_v1.0.1_linux_amd64.tar.gz \
   --repo pars-aria-labs/asynqmon
 
 docker buildx imagetools inspect \
-  ghcr.io/pars-aria-labs/asynqmon:v1.0.0
+  ghcr.io/pars-aria-labs/asynqmon:v1.0.1
 ```
 
 Pin the reported container digest when promoting an image to production.
