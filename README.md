@@ -1,189 +1,136 @@
-<p align="center">
-  <img src="https://user-images.githubusercontent.com/11155743/114745460-57760500-9d57-11eb-9a2c-43fa88171807.png" alt="Asynqmon logo" width="360">
-</p>
-
 # Asynqmon
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/pars-aria-labs/asynqmon.svg)](https://pkg.go.dev/github.com/pars-aria-labs/asynqmon)
 [![Test](https://github.com/pars-aria-labs/asynqmon/actions/workflows/test.yml/badge.svg)](https://github.com/pars-aria-labs/asynqmon/actions/workflows/test.yml)
 [![CodeQL](https://github.com/pars-aria-labs/asynqmon/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/pars-aria-labs/asynqmon/actions/workflows/codeql-analysis.yml)
 
-Asynqmon is a responsive web dashboard for inspecting and administering
-[Asynq](https://github.com/pars-aria-labs/asynq) queues, tasks, schedulers, servers,
-Redis state, and Prometheus time series. It can run as a standalone binary or
-be mounted as an HTTP handler inside an existing Go service.
+Asynqmon is a web dashboard for understanding what is happening inside your
+Asynq queues. It gives operators a clear view of queues, tasks, workers,
+schedulers, Redis, and Prometheus history. You can run it as a small standalone
+service or mount it inside an existing Go application.
 
-## Source, lineage, and scope
+## Where this project comes from
 
-This repository is an independently maintained fork, not an official release
-of the upstream Asynqmon project.
+This project is based on the MIT-licensed
+[original Asynqmon project](https://github.com/hibiken/asynqmon). The
+modernization maintained here started from the preserved baseline commit
+[`8bf6ad3`](https://github.com/pars-aria-labs/asynqmon/commit/8bf6ad3618d90570102589ee2c8e2e891d07547f).
+The original Git history, copyright notice, and license remain intact.
 
-| Part | Source used by this repository |
-| --- | --- |
-| Original dashboard | [`github.com/hibiken/asynqmon`](https://github.com/hibiken/asynqmon), distributed under the MIT License |
-| Migration baseline | Local tag `v0.7.2-parsidev-1`, commit [`8bf6ad3`](https://github.com/pars-aria-labs/asynqmon/commit/8bf6ad3618d90570102589ee2c8e2e891d07547f) |
-| Current module | `github.com/pars-aria-labs/asynqmon` |
-| Asynq implementation | [`github.com/pars-aria-labs/asynq`](https://github.com/pars-aria-labs/asynq) at `v0.27.1` |
+This is an independently maintained project, not an official upstream release.
+Its current module path is:
 
-The Asynq implementation now declares and publishes its own
-`github.com/pars-aria-labs/asynq` module identity. Application code imports it
-directly, and consumers no longer need to copy a `replace` directive. The
-optional metrics collector is published from the matching
-`github.com/pars-aria-labs/asynq/x` module.
-
-This branch is tested against `v0.27.1` of both Asynq modules. Historical
-upstream compatibility tables should not be assumed to describe this fork.
-
-### What changed in this fork
-
-- Renamed the Go module and all Asynqmon imports to
-  `github.com/pars-aria-labs/asynqmon`.
-- Rebuilt the frontend around React 18, TypeScript 5, Vite, and Material UI 7;
-  upgraded the charts to Recharts 3.
-- Added a responsive desktop/mobile shell, light and dark themes, clearer data
-  summaries, task detail tools, JSON search/copy, and shareable URL filters.
-- Made request state resilient to refreshes, route changes, polling, aborted
-  requests, temporary failures, and stale data. A manual Dashboard refresh now
-  starts a new generation for both queue summaries and queue history, so a late
-  response from the previous generation cannot overwrite newer data. Queue
-  mutations likewise supersede an older poll and fetch authoritative state
-  after the mutation completes.
-- Hardened the existing read-only and standalone Basic Auth behavior; added
-  full-handler library authentication, pluggable Go middleware, protection
-  against unsafe cross-origin mutations, and clickjacking response headers.
-- Kept Metrics discoverable even before Prometheus is configured, with an
-  actionable setup screen instead of a hidden route.
-- Hardened Prometheus queries with request cancellation, bounded timeouts and
-  bodies, URL and response validation, safe PromQL escaping, and explicit
-  `502`/`504` failures.
-- Added a self-contained Redis/worker/Prometheus demo plus Go, React, browser,
-  framework-adapter, security, and visual-regression tests.
-- Added CI smoke tests for `linux/amd64` and `linux/arm64`, and a release flow
-  that publishes multi-platform binaries and containers with checksums, SBOM,
-  and build-provenance attestations.
-
-The original copyright, MIT license, contributor credit, and logo attribution
-are preserved in [License and attribution](#license-and-attribution).
-
-## Try the complete demo
-
-The demo starts an isolated Redis instance, a synthetic producer/worker,
-Prometheus, and the dashboard:
-
-```sh
-docker compose -f compose.demo.yaml up --build --detach --wait
+```text
+github.com/pars-aria-labs/asynqmon
 ```
 
-Open <http://localhost:8080>. Tasks continuously move through successful,
-retrying, archived, and scheduled states, so the tables and charts contain
-useful data immediately.
+The code imports the Pars Aria Labs Asynq modules directly. The `v1.0.0`
+line of this dashboard is built and tested with:
 
-```sh
-# Follow dashboard and task-generator logs.
-docker compose -f compose.demo.yaml logs --follow dashboard demo
+- `github.com/pars-aria-labs/asynq v1.0.0-beta.1`
+- `github.com/pars-aria-labs/asynq/x v0.27.1`
 
-# Stop the stack and remove its temporary data.
-docker compose -f compose.demo.yaml down --volumes
-```
+No consumer-side `replace` directive is needed.
 
-See [the demo guide](dev/README.md) for port overrides, architecture notes, and
-troubleshooting.
+## What changed here
 
-## Install
+- The Go module and all internal imports now use the
+  `github.com/pars-aria-labs/asynqmon` identity.
+- The frontend was rebuilt with React 18, TypeScript 5, Vite 7, Material UI 7,
+  and Recharts 3. It now has a responsive application shell, light and dark
+  themes, clearer summaries, task details, JSON tools, and shareable URL
+  filters.
+- Polling and manual refreshes are cancellation-aware. A late response from an
+  older screen, filter, or refresh generation cannot silently replace newer
+  data.
+- Large “all tasks” operations run in bounded batches of at most 500 tasks and
+  show progress. The initial workload is frozen, so a busy producer cannot keep
+  one operator action running forever.
+- Standalone and embedded deployments support Basic Auth, read-only mode,
+  application middleware, cross-origin mutation protection, and anti-framing
+  headers.
+- Prometheus remains server-side. The browser receives only a boolean
+  “configured” marker; internal URLs and credentials are not written into the
+  HTML bundle.
+- Prometheus queries now have cancellation, timeouts, concurrency and body-size
+  limits, URL validation, and safe PromQL escaping.
+- CI tests the Go and browser applications, scans both languages with CodeQL,
+  smoke-tests `linux/amd64` and `linux/arm64` containers, and produces verified
+  release artifacts.
 
-### Release binary
+## Quick start
 
-After the first delivery run completes, download the archive for your operating
-system and architecture from the
-[GitHub Releases page](https://github.com/pars-aria-labs/asynqmon/releases),
-extract it, and run `asynqmon` (`asynqmon.exe` on Windows).
-
-Once the delivery workflows have been merged into the default branch, pushing
-a valid version tag starts the release workflow. A successful run creates
-Linux, macOS, and Windows builds for `amd64` and `arm64`, along with
-`checksums.txt`. The
-[release verification instructions](#verify-a-release) show how to validate a
-download.
-
-### Container image
-
-Once the first release completes, its image supports `linux/amd64` and
-`linux/arm64`. Use the versioned tag shown on the Releases page:
-
-```sh
-docker pull ghcr.io/pars-aria-labs/asynqmon:vX.Y.Z
-
-docker run --rm \
-  --name asynqmon \
-  --add-host=host.docker.internal:host-gateway \
-  --publish 127.0.0.1:8080:8080 \
-  ghcr.io/pars-aria-labs/asynqmon:vX.Y.Z \
-  --redis-addr=host.docker.internal:6379
-```
-
-Stable releases also update `latest`; pre-releases do not. Public GHCR packages
-can be pulled anonymously. Private packages require a personal access token
-(classic) with `read:packages`; authorize it for SSO when the organization
-requires that. For immutable production deployments, pin the image digest;
-otherwise prefer a versioned tag over `latest`.
-
-### Build from source
-
-Building requires the Go version declared in `go.mod`, Node.js 22.12 or newer,
-and npm:
+Building the complete application requires Go 1.25, Node.js 22.12 or newer,
+and npm.
 
 ```sh
 git clone https://github.com/pars-aria-labs/asynqmon.git
 cd asynqmon
 make build
-./asynqmon --help
+./asynqmon --redis-addr=127.0.0.1:6379
 ```
 
-`make build` installs the locked UI dependencies, creates the production web
-assets, embeds them, and writes the standalone binary to `./asynqmon`.
+Open <http://localhost:8080>.
 
-## Run and configure
+The frontend is compiled first and embedded in the Go binary, so the resulting
+`asynqmon` file is self-contained. If the UI has already been built, `make api`
+is a quicker backend-only build for development.
 
-With Redis listening on `127.0.0.1:6379`, the minimum command is:
+### Release binary
+
+Releases produced by the current workflow contain Linux, macOS, and Windows
+archives for `amd64` and `arm64`, plus `checksums.txt`. Download the archive for your platform from
+[GitHub Releases](https://github.com/pars-aria-labs/asynqmon/releases), extract
+it, and run `asynqmon` (`asynqmon.exe` on Windows).
+
+### Container
+
+After the release workflow has completed, the same version is available for
+`linux/amd64` and `linux/arm64`:
 
 ```sh
-./asynqmon
+docker run --rm \
+  --name asynqmon \
+  --add-host=host.docker.internal:host-gateway \
+  --publish 127.0.0.1:8080:8080 \
+  ghcr.io/pars-aria-labs/asynqmon:v1.0.0 \
+  --redis-addr=host.docker.internal:6379
 ```
 
-Then open <http://localhost:8080>. Flags can also be supplied through the
-corresponding environment variables:
+Use a versioned tag—or, for immutable deployments, an image digest—instead of
+`latest` in production.
+
+## Configuration
+
+Every command-line option has a matching environment variable:
 
 | Flag | Environment variable | Purpose | Default |
 | --- | --- | --- | --- |
-| `--port` | `PORT` | HTTP listen port | `8080` |
+| `--port` | `PORT` | HTTP listening port | `8080` |
 | `--redis-url` | `REDIS_URL` | Redis or Sentinel connection URL | empty |
 | `--redis-addr` | `REDIS_ADDR` | Single Redis address | `127.0.0.1:6379` |
 | `--redis-db` | `REDIS_DB` | Redis database number | `0` |
 | `--redis-password` | `REDIS_PASSWORD` | Redis password | empty |
-| `--redis-cluster-nodes` | `REDIS_CLUSTER_NODES` | Comma-separated cluster node addresses | empty |
-| `--redis-prefix` | `REDIS_PREFIX` | Prefix used by Asynq Redis keys | empty |
+| `--redis-cluster-nodes` | `REDIS_CLUSTER_NODES` | Comma-separated cluster seed addresses | empty |
+| `--redis-prefix` | `REDIS_PREFIX` | Prefix for Asynq Redis keys | empty |
 | `--redis-tls` | `REDIS_TLS` | Server name used for TLS verification | empty |
-| `--redis-insecure-tls` | `REDIS_INSECURE_TLS` | Disable TLS certificate-host validation | `false` |
-| `--max-payload-length` | `MAX_PAYLOAD_LENGTH` | Maximum payload characters shown in a table cell | `200` |
-| `--max-result-length` | `MAX_RESULT_LENGTH` | Maximum result characters shown in a table cell | `200` |
-| `--read-only` | `READ_ONLY` | Disable queue and task mutations | `false` |
+| `--redis-insecure-tls` | `REDIS_INSECURE_TLS` | Disable TLS host verification | `false` |
+| `--max-payload-length` | `MAX_PAYLOAD_LENGTH` | Maximum payload characters displayed in tables | `200` |
+| `--max-result-length` | `MAX_RESULT_LENGTH` | Maximum result characters displayed in tables | `200` |
+| `--read-only` | `READ_ONLY` | Reject queue and task mutations | `false` |
 | `--basic-auth-username` | `BASIC_AUTH_USERNAME` | HTTP Basic Auth username | empty |
 | `--basic-auth-password` | `BASIC_AUTH_PASSWORD` | HTTP Basic Auth password | empty |
-| `--enable-metrics-exporter` | `ENABLE_METRICS_EXPORTER` | Expose Asynq metrics at `/metrics` | `false` |
-| `--prometheus-addr` | `PROMETHEUS_ADDR` | Prometheus base URL queried for charts | empty |
+| `--enable-metrics-exporter` | `ENABLE_METRICS_EXPORTER` | Expose current queue metrics at `/metrics` | `false` |
+| `--prometheus-addr` | `PROMETHEUS_ADDR` | Prometheus URL used for historical charts | empty |
 
-Run `./asynqmon --help` for the authoritative list. Help exits successfully
-with status `0`. Values loaded from `REDIS_PASSWORD`, `REDIS_URL`,
-`PROMETHEUS_ADDR`, and `BASIC_AUTH_PASSWORD` remain active configuration, but
-their defaults are deliberately omitted from help output so credentials and
-internal service URLs are not echoed into terminals or logs. Both Basic Auth
-values must be set together; a partial configuration is rejected before the
-server starts.
+Run `./asynqmon --help` for the authoritative list; printing help is a successful
+operation and exits with status `0`. Both Basic Auth values must be set together.
+Secret-bearing environment defaults are deliberately omitted from help output,
+so a password or internal URL is not echoed into a terminal or log.
 
 ### Redis examples
 
-A single Redis instance can be described either with a URL or individual
-options:
+Connect to a single instance with either a URL or separate settings:
 
 ```sh
 ./asynqmon --redis-url='redis://:secret@localhost:6380/2'
@@ -194,11 +141,11 @@ options:
   --redis-password='secret'
 ```
 
-For Sentinel, put all endpoints and the master name in `--redis-url`:
+For Sentinel, include every endpoint and the master name in the URL:
 
 ```sh
 ./asynqmon \
-  --redis-url='redis-sentinel://:secret@sentinel-1:5000,sentinel-2:5001,sentinel-3:5002?master=mymaster'
+  --redis-url='redis-sentinel://:secret@sentinel-1:5000,sentinel-2:5001?master=mymaster'
 ```
 
 For Redis Cluster, provide the seed nodes:
@@ -208,19 +155,48 @@ For Redis Cluster, provide the seed nodes:
   --redis-cluster-nodes='redis-1:7000,redis-2:7001,redis-3:7002'
 ```
 
-`--redis-insecure-tls` is intended only for controlled development systems.
-Keep certificate verification enabled in production.
+Keep TLS verification enabled in production. `--redis-insecure-tls` is meant
+only for controlled development environments.
 
-## Prometheus tutorial
+## Bounded bulk operations
 
-There are two separate pieces:
+The dashboard processes delete, run, and archive-all actions in batches of at
+most 500 tasks. It remembers the amount of work seen by the first response and
+stops after that budget is exhausted, even if producers continue adding tasks.
+Authentication, read-only mode, and cross-origin protection apply to every
+batch request exactly as they do to any other mutation.
 
-1. `--enable-metrics-exporter` exposes current Asynq queue metrics from the
-   dashboard process at `/metrics`.
-2. `--prometheus-addr` tells the dashboard where it can query previously
-   scraped time-series data for its charts.
+The UI handles this protocol automatically. An API client can opt in by adding
+`batch_size`:
 
-Start Asynqmon with both features:
+```sh
+curl --user "$ASYNQMON_USER:$ASYNQMON_PASS" \
+  --request POST \
+  'https://monitor.example.com/api/queues/critical/scheduled_tasks:run_all?batch_size=500'
+```
+
+A successful response reports both confirmed work and what remains:
+
+```json
+{"remaining":23,"scheduled":500}
+```
+
+Repeat with a limit no larger than 500 until `remaining` is zero. If the
+follow-up count fails after Redis has committed a mutation, the error response
+includes `processed`; do not blindly retry an ambiguous mutation. Older
+Asynqmon builds that do not support the bounded API continue to use the
+original single-request behavior.
+
+## Prometheus: exporter and chart history
+
+Two settings solve two different jobs:
+
+1. `--enable-metrics-exporter` exposes current Asynq metrics from this process
+   at `/metrics`.
+2. `--prometheus-addr` tells Asynqmon where to query stored time-series data for
+   its charts.
+
+Start Asynqmon with both:
 
 ```sh
 ./asynqmon \
@@ -229,10 +205,9 @@ Start Asynqmon with both features:
   --prometheus-addr=http://prometheus:9090
 ```
 
-Configure Prometheus to scrape the dashboard:
+Then ask Prometheus to scrape it:
 
 ```yaml
-# prometheus.yml
 scrape_configs:
   - job_name: asynqmon
     scrape_interval: 5s
@@ -240,8 +215,9 @@ scrape_configs:
       - targets: ["asynqmon:8080"]
 ```
 
-If Basic Auth protects the standalone server, Prometheus must use the same
-credentials because `/metrics` is protected too:
+If the standalone server uses Basic Auth, Prometheus needs the same credentials
+because `/metrics` is protected too. Prefer a mounted secret file over an
+inline password:
 
 ```yaml
 scrape_configs:
@@ -253,114 +229,67 @@ scrape_configs:
       password_file: /run/secrets/asynqmon_password
 ```
 
-After the first samples are scraped, select **Metrics** in the dashboard.
-Without `--prometheus-addr`, that route remains visible and explains exactly
-which server-side setting is missing; the browser never attempts to contact
-Prometheus directly. The rendered HTML receives only a boolean
-“Prometheus configured” marker—not the configured URL, credentials, or
-internal hostname—and chart requests go through Asynqmon's same-origin
-`/api/metrics` endpoint. The literal `/metrics` URL is the Prometheus scrape
-endpoint, not the chart page.
+The browser never talks directly to Prometheus. Chart requests go through the
+same-origin `/api/metrics` endpoint, while the real Prometheus address stays on
+the server. Paths such as `https://example.com/prometheus` are supported. Each
+upstream query has a ten-second timeout. A request may cover from one second to
+30 days; the raw query string is capped at 32 KiB and the decoded `queues`
+parameter at 16 KiB. Asynqmon reads at most 4 MiB from any one Prometheus
+response and 24 MiB across the complete chart request. At most two chart
+requests run concurrently; extra requests receive `503 Service Unavailable`
+with `Retry-After: 1`, so clients know when to try again.
 
-The configured Prometheus address must be an `http` or `https` URL with a host.
-A path prefix such as `https://example.com/prometheus` is supported. Dashboard
-queries inherit the incoming request cancellation, time out after ten seconds,
-and reject invalid or oversized upstream responses.
-
-The metrics endpoint applies the following limits before or while querying
-Prometheus:
-
-- `duration` is inclusive from `1` second through `30` days; the UI also
-  normalizes imported or shared URLs to this range.
-- The raw URL query string is limited to 32 KiB, and the decoded `queues`
-  parameter is limited to 16 KiB.
-- Each of the nine Prometheus response bodies is limited to 4 MiB, and their
-  accepted aggregate is limited to 24 MiB.
-- At most two dashboard metrics requests may run at once per handler instance.
-  An additional request receives `503 Service Unavailable` with
-  `Retry-After: 1`, allowing a client to retry without creating unbounded
-  Prometheus fan-out.
-
-### Export metrics when Asynqmon is embedded
-
-`Options.PrometheusAddress` only enables server-side chart queries. In library
-mode, the host application owns its Prometheus registry and scrape endpoint:
+When Asynqmon is embedded as a library, `Options.PrometheusAddress` enables
+chart queries only. The host application owns its Prometheus registry and
+scrape route:
 
 ```go
-import (
-	"net/http"
-
-	"github.com/pars-aria-labs/asynq"
-	"github.com/pars-aria-labs/asynq/x/metrics"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-)
-
-redisOptions := asynq.RedisClientOpt{Addr: "redis:6379"}
 inspector := asynq.NewInspector(redisOptions)
 defer inspector.Close()
 
 registry := prometheus.NewRegistry()
 registry.MustRegister(metrics.NewQueueMetricsCollector(inspector))
 
-mux := http.NewServeMux()
 mux.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 ```
 
-The embedded Asynqmon authentication options do not automatically protect this
-host-owned `/metrics` route. Restrict it at the network layer or wrap it with
-the host service's authentication middleware, then configure matching scrape
-credentials in Prometheus.
+Protect that host-owned route with your network policy or application
+middleware.
 
 ## Secure deployment
 
-For a read-only dashboard protected with Basic Auth:
+For a read-only standalone dashboard protected by Basic Auth:
 
 ```sh
 export BASIC_AUTH_USERNAME='monitor'
-export BASIC_AUTH_PASSWORD='use-a-secret-manager-here'
+export BASIC_AUTH_PASSWORD='load-this-from-a-secret-manager'
 export READ_ONLY=true
 ./asynqmon --redis-addr=redis.internal:6379
 ```
 
-Basic Auth credentials are only encoded, not encrypted. Terminate HTTPS at the
-application or a trusted reverse proxy before exposing the dashboard outside a
-private development network. Avoid putting passwords directly in shell history
-or image arguments.
+Basic Auth encodes credentials; it does not encrypt them. Terminate HTTPS at
+the application or a trusted reverse proxy before exposing the dashboard
+outside a private development network. Avoid putting passwords in shell
+history, image arguments, or source control.
 
-Read-only mode rejects mutation endpoints with `405 Method Not Allowed`.
-Unsafe cross-origin browser requests are also rejected to protect task and
-queue operations from CSRF. These controls complement authentication; they do
-not replace it. The handler also emits
-`Content-Security-Policy: frame-ancestors 'none'` and
-`X-Frame-Options: DENY` to prevent the dashboard from being framed for
-clickjacking.
+Read-only mode returns `405 Method Not Allowed` for mutations. Unsafe
+cross-origin browser requests are rejected, and responses include both
+`Content-Security-Policy: frame-ancestors 'none'` and `X-Frame-Options: DENY`.
+These safeguards complement authentication; they do not replace it.
 
-## Using Asynqmon as a library
+## Use Asynqmon as a Go library
 
-Add Asynqmon and the matching Asynq release to the consuming application:
+Once the `v1.0.0` release workflow has completed, install the dashboard and its
+matching queue modules:
 
 ```sh
-go get github.com/pars-aria-labs/asynqmon@latest
-go get github.com/pars-aria-labs/asynq@v0.27.1
+go get github.com/pars-aria-labs/asynqmon@v1.0.0
+go get github.com/pars-aria-labs/asynq@v1.0.0-beta.1
+go get github.com/pars-aria-labs/asynq/x@v0.27.1
 go mod tidy
 ```
 
-Applications using the optional metrics collector should add its module at the
-same version:
-
-```sh
-go get github.com/pars-aria-labs/asynq/x@v0.27.1
-```
-
-`@latest` starts resolving this module path only after a new tag containing
-the rename has been published. Do not reuse the baseline
-`v0.7.2-parsidev-1` tag, whose `go.mod` still belongs to the previous module.
-
-Import Asynq directly from `github.com/pars-aria-labs/asynq`. No module
-replacement is required.
-
-### `net/http` example
+Here is a small, production-minded `net/http` example:
 
 ```go
 package main
@@ -394,7 +323,7 @@ func main() {
 	defer monitor.Close()
 
 	mux := http.NewServeMux()
-	// The trailing slash is required by ServeMux for the whole subtree.
+	// The trailing slash mounts the entire dashboard subtree.
 	mux.Handle(monitor.RootPath()+"/", monitor)
 
 	server := &http.Server{
@@ -402,146 +331,100 @@ func main() {
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
-	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Printf("asynqmon server stopped: %v", err)
+	if err := server.ListenAndServe(); err != nil &&
+		!errors.Is(err, http.ErrServerClosed) {
+		log.Printf("asynqmon stopped: %v", err)
 	}
 }
 ```
 
-Open <http://localhost:8080/monitoring/>. Do not wrap the handler in
-`http.StripPrefix`; `RootPath` must match the route on which the handler is
-mounted. Call `Close` during application shutdown so its Redis resources are
-released.
+Open <http://localhost:8080/monitoring/>. Do not use `http.StripPrefix` here;
+`RootPath` must match the route on which the handler is mounted. Call `Close`
+during shutdown so the Redis resources owned by the handler are released.
 
-### Existing session, JWT, or SSO middleware
-
-`Options.Middleware` wraps HTML, static assets, and every monitoring API route:
-
-```go
-monitor := asynqmon.New(asynqmon.Options{
-	RootPath:     "/monitoring",
-	RedisConnOpt: redisOptions,
-	Middleware: func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !currentUserMayMonitor(r.Context()) {
-				http.Error(w, "forbidden", http.StatusForbidden)
-				return
-			}
-			next.ServeHTTP(w, r)
-		})
-	},
-})
-```
-
-If custom middleware and built-in Basic Auth are both configured, both checks
-must succeed. Adapter examples for Gin and Echo are compiled and tested under
-[`integration/frameworks`](integration/frameworks).
-
-### Migrating to the current modules
-
-Remove previous Asynqmon and Asynq requirements and delete any legacy Asynq
-`replace` directive from `go.mod`; `go mod tidy` does not remove an unused
-replacement automatically. Then add the current modules:
-
-```sh
-go get github.com/pars-aria-labs/asynqmon@latest
-go get github.com/pars-aria-labs/asynq@v0.27.1
-go mod tidy
-```
-
-Update application imports to the paths shown in the examples above. Public
-handler concepts such as `Options`, `New`, `RootPath`, and `Close` remain
-familiar, while the new auth and middleware fields are opt-in. Go treats
-identical-looking types from different module paths as distinct, so migrate
-every direct Asynq import before passing connection options, clients,
-inspectors, or tasks to Asynqmon.
+`Options.Middleware` can wrap the complete handler when the host already has a
+session, JWT, or SSO layer. If custom middleware and built-in Basic Auth are
+both configured, both checks must succeed.
 
 ## Development and verification
 
-The shortest complete local verification is:
+The frontend has its own focused guide in [`ui/README.md`](ui/README.md). A
+complete local check looks like this:
 
 ```sh
 cd ui
 npm ci --no-audit --no-fund
-npx playwright install --with-deps chromium
 npm run typecheck
 npm test
 npm run build
+npx playwright install chromium
 npm run test:e2e
 cd ..
 
-go test -race ./...
+ASYNQMON_TEST_REDIS_ADDR=127.0.0.1:6379 go test -race -count=1 ./...
 go vet ./...
-(cd integration/frameworks && go test -race ./...)
+mkdir -p bin
+CGO_ENABLED=0 go build -o ./bin/asynqmon ./cmd/asynqmon
 ```
 
-Integration tests use Redis when `ASYNQMON_TEST_REDIS_ADDR` is set:
+The Redis-backed tests use isolated prefixes and clean up their queues. Without
+`ASYNQMON_TEST_REDIS_ADDR`, those integration cases are skipped.
+
+## Maintainer release checklist
+
+Releases are tag-driven. Before tagging, make sure the exact commit is already
+on `main` and that Test plus both CodeQL analyses are green. Protect `main` from
+force-pushes and protect `v*` tags from updates or deletion. Repository Actions
+must be allowed to create Releases, publish packages, and write attestations.
+
+Create an annotated or signed SemVer tag on that verified commit:
 
 ```sh
-ASYNQMON_TEST_REDIS_ADDR=127.0.0.1:6379 go test -race ./...
+git switch main
+git pull --ff-only
+git status --short
+git tag -s v1.0.0 -m 'Asynqmon v1.0.0'
+git push origin v1.0.0
 ```
 
-The browser suite starts its own fixture server and does not mutate your Redis
-instance. See [`ui/README.md`](ui/README.md) for frontend development details
-and [`docs/HANDOFF.fa.md`](docs/HANDOFF.fa.md) for the Persian implementation
-and validation record.
+Use `git tag -a` instead of `-s` only when release signing is not available.
+Do not create a GitHub Release manually. The tag starts the Release workflow,
+which validates the tag, reruns tests and CodeQL, builds six archives, generates
+checksums and provenance, publishes a multi-architecture GHCR image, uploads
+the assets to a draft, and publishes the Release only after the required jobs
+succeed. Stable releases update `latest`; pre-releases do not.
 
-## Maintainer releases
+A new GHCR package may initially be private. Private pulls require a classic
+personal access token with `read:packages`, plus SSO authorization when the
+organization requires it. Making a package public is an explicit maintainer
+decision.
 
-Release automation is driven by a SemVer-style tag such as `v0.8.0` or
-`v0.8.0-rc.1`. The tagged commit must already be part of the repository's
-default branch; the workflow then runs the complete test suite before it
-reruns CodeQL and publishes binaries, checksums, attestations, and the
-multi-platform GHCR image.
-Do not create the GitHub Release manually. The one-time repository settings,
-exact release commands, GHCR visibility choices, and recovery procedure are in
-the [Persian maintainer runbook](docs/RELEASING.fa.md).
+If a workflow job fails, correct the cause and rerun the failed jobs. Never move
+or replace a published release tag; publish a patch release instead.
 
-## Verify a release
+### Verify release artifacts
 
-Download all archives plus `checksums.txt` into one directory, then verify their
-contents on Linux:
+After downloading all archives and `checksums.txt` into one directory:
 
 ```sh
 sha256sum --check checksums.txt
-```
 
-On macOS, use the system `shasum` command instead:
-
-```sh
-shasum -a 256 --check checksums.txt
-```
-
-With the GitHub CLI installed, verify that GitHub Actions built an individual
-asset from this repository:
-
-```sh
 gh attestation verify \
-  asynqmon_vX.Y.Z_linux_amd64.tar.gz \
+  asynqmon_v1.0.0_linux_amd64.tar.gz \
   --repo pars-aria-labs/asynqmon
+
+docker buildx imagetools inspect \
+  ghcr.io/pars-aria-labs/asynqmon:v1.0.0
 ```
 
-Containers published by the release workflow include an SBOM and
-registry-backed provenance. The GitHub CLI requires an authenticated registry
-session for OCI verification, including for public images. Log in with a
-personal access token (classic) that has `read:packages`, then verify the image:
-
-```sh
-printf '%s' "$GHCR_TOKEN" | \
-  docker login ghcr.io --username YOUR_GITHUB_USERNAME --password-stdin
-gh attestation verify \
-  oci://ghcr.io/pars-aria-labs/asynqmon:vX.Y.Z \
-  --repo pars-aria-labs/asynqmon
-```
-
-Use digests when promoting an image between environments.
+Pin the reported container digest when promoting an image to production.
 
 ## License and attribution
 
-This project is distributed under the [MIT License](LICENSE). It is derived
-from [Asynqmon by Ken Hibino and its contributors](https://github.com/hibiken/asynqmon),
-and the existing copyright notice remains intact.
+Asynqmon is distributed under the [MIT License](LICENSE). It is derived from
+the original Asynqmon work by Kentaro Hibino and its contributors; the existing
+copyright notice remains in place.
 
-The original Asynqmon logo was created by
+The original logo was created by
 [Vic Shóstak](https://github.com/koddr) and released under
 [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/).

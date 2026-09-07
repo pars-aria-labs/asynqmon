@@ -16,10 +16,11 @@ import (
 
 	"github.com/pars-aria-labs/asynq"
 	"github.com/pars-aria-labs/asynq/x/metrics"
-	"github.com/pars-aria-labs/asynqmon"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
+
+	"github.com/pars-aria-labs/asynqmon"
 )
 
 // Config holds configurations for the program provided via the command line.
