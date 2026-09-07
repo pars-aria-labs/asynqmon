@@ -44,8 +44,8 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags="-s -w" -o asynqmon ./cmd/asynqmon
 
 #
-# Third stage: 
-# Creating and running a new scratch container with the backend binary.
+# Third stage:
+# Creating and running a minimal container with the backend binary.
 #
 
 FROM scratch

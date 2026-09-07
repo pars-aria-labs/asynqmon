@@ -12,6 +12,7 @@ import { useTheme } from "./theme";
 import { closeSnackbar } from "./actions/snackbarActions";
 import AppShell from "./layout/AppShell";
 import AppRoutes from "./layout/AppRoutes";
+import BulkActionProgress from "./components/BulkActionProgress";
 
 export default function App() {
   const preference = useSelector(
@@ -28,6 +29,7 @@ export default function App() {
           <AppRoutes />
         </AppShell>
       </BrowserRouter>
+      <BulkActionProgress />
       <Snackbar
         open={snackbar.isOpen}
         autoHideDuration={6000}

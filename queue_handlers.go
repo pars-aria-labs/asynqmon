@@ -22,14 +22,14 @@ func newListQueuesHandlerFunc(inspector *asynq.Inspector) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		snapshots := make([]*queueStateSnapshot, len(qnames))
-		for i, qname := range qnames {
-			qinfo, err := inspector.GetQueueInfo(qname)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			snapshots[i] = toQueueStateSnapshot(qinfo)
+		infos, err := getQueueInfos(r.Context(), inspector, qnames)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		snapshots := make([]*queueStateSnapshot, len(infos))
+		for i, info := range infos {
+			snapshots[i] = toQueueStateSnapshot(info)
 		}
 		payload := map[string]interface{}{"queues": snapshots}
 		json.NewEncoder(w).Encode(payload)
@@ -42,7 +42,7 @@ func newGetQueueHandlerFunc(inspector *asynq.Inspector) http.HandlerFunc {
 		qname := vars["qname"]
 
 		payload := make(map[string]interface{})
-		qinfo, err := inspector.GetQueueInfo(qname)
+		qinfo, err := getQueueInfo(r.Context(), inspector, qname)
 		if err != nil {
 			// TODO: Check for queue not found error.
 			http.Error(w, err.Error(), http.StatusInternalServerError)
