@@ -10,7 +10,7 @@
     "@reduxjs/toolkit": "^1.9.7",
     "axios": "^1.12.0",
     "clsx": "1.1.1",
-    "dayjs": "1.10.7",
+    "dayjs": "1.11.23",
     "lodash.uniqby": "4.7.0",
     "pretty-bytes": "^6.1.1",
     "query-string": "^9.5.1",
